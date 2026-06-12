@@ -152,8 +152,8 @@ const AppSidebar = () => {
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
       <div className="flex h-16 items-center gap-3 px-6">
-        <img src="/logo.svg" alt="ET24 logo" className="h-8 w-8 rounded-lg" />
-        <h1 className="text-lg font-bold bg-gradient-to-r from-orange-400 via-rose-400 to-purple-400 bg-clip-text text-transparent">
+        <img src="/logo.svg" alt="ET24 logo" className="h-8 w-8 rounded-lg shadow-sm" />
+        <h1 className="text-sm font-bold bg-gradient-to-r from-amber-500 to-yellow-400 bg-clip-text text-transparent tracking-widest uppercase">
           ET24
         </h1>
       </div>

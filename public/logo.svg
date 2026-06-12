@@ -1,26 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
   <defs>
-    <!-- Refined, premium teal-to-emerald gradient -->
-    <linearGradient id="premiumGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0f766e" />   <!-- Deep teal -->
-      <stop offset="100%" stop-color="#10b981" /> <!-- Bright emerald -->
+    <!-- Warm gold/bronze premium gradient representing Bruce Wayne style -->
+    <linearGradient id="goldGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#b45309" />   <!-- Bronze gold -->
+      <stop offset="60%" stop-color="#fbbf24" />  <!-- Bright gold -->
+      <stop offset="100%" stop-color="#fef08a" /> <!-- Light gold highlights -->
     </linearGradient>
   </defs>
 
   <!-- Clean dark card background -->
   <rect width="100" height="100" rx="24" fill="#09090b" />
 
-  <!-- Subtle background grid lines representing ledgers/tracking sheet -->
-  <path d="M 25 0 L 25 100 M 50 0 L 50 100 M 75 0 L 75 100 M 0 25 L 100 25 M 0 50 L 100 50 M 0 75 L 100 75" 
-        stroke="#18181b" 
-        stroke-width="1" 
-        fill="none" />
+  <!-- Outer gold boundary ring -->
+  <rect x="3" y="3" width="94" height="94" rx="21" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" opacity="0.3" />
 
-  <!-- The core geometric symbol: A checkmark sweeping upward into a growth arrow -->
-  <path d="M 32 54 L 44 66 L 70 32 M 56 32 L 70 32 L 70 46" 
-        stroke="url(#premiumGrad)" 
-        stroke-width="7" 
-        stroke-linecap="round" 
-        stroke-linejoin="round" 
-        fill="none" />
+  <!-- Geometric Batwing Silhouette -->
+  <path d="M 50,32 
+           C 48,22 46,18 45,18 
+           C 44,22 40,30 36,32 
+           C 22,34 12,42 12,54 
+           C 12,68 28,62 34,60 
+           C 38,65 44,78 50,82 
+           C 56,78 62,65 66,60 
+           C 72,62 88,68 88,54 
+           C 88,42 78,34 64,32 
+           C 60,30 56,22 55,18 
+           C 54,18 52,22 50,32 Z" 
+        fill="url(#goldGrad)" />
 </svg>
