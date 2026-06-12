@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { TrendingUp, TrendingDown, Target, Calendar } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -18,30 +19,43 @@ const Dashboard = () => {
 
   const fetchStats = async () => {
     const now = new Date();
-    const start = startOfMonth(now);
-    const end = endOfMonth(now);
+    const startStr = format(startOfMonth(now), 'yyyy-MM-dd');
+    const endStr = format(endOfMonth(now), 'yyyy-MM-dd');
 
-    const { data: records } = await supabase
-      .from('financial_records')
-      .select('type, amount')
-      .eq('user_id', user!.id)
-      .gte('record_date', format(start, 'yyyy-MM-dd'))
-      .lte('record_date', format(end, 'yyyy-MM-dd'));
+    try {
+      // 1. Fetch financial records for current month
+      const recordsRef = collection(db, 'financial_records');
+      const recordsQuery = query(
+        recordsRef,
+        where('user_id', '==', user!.id),
+        where('record_date', '>=', startStr),
+        where('record_date', '<=', endStr)
+      );
+      const recordsSnap = await getDocs(recordsQuery);
+      const records: any[] = [];
+      recordsSnap.forEach(doc => {
+        records.push(doc.data());
+      });
 
-    const income = records?.filter(r => r.type === 'income').reduce((s, r) => s + Number(r.amount), 0) || 0;
-    const expenses = records?.filter(r => r.type === 'expense').reduce((s, r) => s + Number(r.amount), 0) || 0;
+      const income = records.filter(r => r.type === 'income').reduce((s, r) => s + Number(r.amount), 0) || 0;
+      const expenses = records.filter(r => r.type === 'expense').reduce((s, r) => s + Number(r.amount), 0) || 0;
 
-    const { count: habitsCount } = await supabase
-      .from('habits')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user!.id);
+      // 2. Fetch habits count
+      const habitsRef = collection(db, 'habits');
+      const habitsQuery = query(habitsRef, where('user_id', '==', user!.id));
+      const habitsSnap = await getDocs(habitsQuery);
+      const habitsCount = habitsSnap.size;
 
-    const { count: streakDays } = await supabase
-      .from('habit_logs')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user!.id);
+      // 3. Fetch check-ins count
+      const logsRef = collection(db, 'habit_logs');
+      const logsQuery = query(logsRef, where('user_id', '==', user!.id));
+      const logsSnap = await getDocs(logsQuery);
+      const streakDays = logsSnap.size;
 
-    setStats({ income, expenses, habitsCount: habitsCount || 0, streakDays: streakDays || 0 });
+      setStats({ income, expenses, habitsCount, streakDays });
+    } catch (err) {
+      console.error('Error fetching dashboard stats from Firestore:', err);
+    }
   };
 
   const fetchMonthlyData = async () => {
@@ -53,22 +67,33 @@ const Dashboard = () => {
       months.push({ month: format(d, 'MMM'), start, end });
     }
 
-    const { data } = await supabase
-      .from('financial_records')
-      .select('type, amount, record_date')
-      .eq('user_id', user!.id)
-      .gte('record_date', months[0].start)
-      .lte('record_date', months[months.length - 1].end);
+    try {
+      const recordsRef = collection(db, 'financial_records');
+      const recordsQuery = query(
+        recordsRef,
+        where('user_id', '==', user!.id),
+        where('record_date', '>=', months[0].start),
+        where('record_date', '<=', months[months.length - 1].end)
+      );
+      
+      const recordsSnap = await getDocs(recordsQuery);
+      const records: any[] = [];
+      recordsSnap.forEach(doc => {
+        records.push(doc.data());
+      });
 
-    const chartData = months.map(m => {
-      const monthRecords = data?.filter(r => r.record_date >= m.start && r.record_date <= m.end) || [];
-      return {
-        month: m.month,
-        income: monthRecords.filter(r => r.type === 'income').reduce((s, r) => s + Number(r.amount), 0),
-        expenses: monthRecords.filter(r => r.type === 'expense').reduce((s, r) => s + Number(r.amount), 0),
-      };
-    });
-    setMonthlyData(chartData);
+      const chartData = months.map(m => {
+        const monthRecords = records.filter(r => r.record_date >= m.start && r.record_date <= m.end) || [];
+        return {
+          month: m.month,
+          income: monthRecords.filter(r => r.type === 'income').reduce((s, r) => s + Number(r.amount), 0),
+          expenses: monthRecords.filter(r => r.type === 'expense').reduce((s, r) => s + Number(r.amount), 0),
+        };
+      });
+      setMonthlyData(chartData);
+    } catch (err) {
+      console.error('Error fetching monthly charts from Firestore:', err);
+    }
   };
 
   const statCards = [
@@ -82,7 +107,7 @@ const Dashboard = () => {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-foreground">
-          Welcome back, {user?.user_metadata?.full_name?.split(' ')[0] || 'there'}
+          Welcome back, {user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'there'}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Here's your overview for {format(new Date(), 'MMMM yyyy')}</p>
       </div>

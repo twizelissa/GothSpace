@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import { Navigate } from 'react-router-dom';
 import { Users, Wallet, Target } from 'lucide-react';
 
@@ -18,16 +19,39 @@ const Admin = () => {
   }, [isAdmin]);
 
   const fetchData = async () => {
-    const { data: profilesData } = await supabase.from('profiles').select('user_id, display_name, email, created_at').order('created_at', { ascending: false });
-    setProfiles(profilesData || []);
+    try {
+      // 1. Fetch all users from Firestore
+      const usersRef = collection(db, 'users');
+      const usersSnap = await getDocs(usersRef);
+      
+      const fetchedProfiles: Profile[] = [];
+      usersSnap.forEach((doc) => {
+        const data = doc.data();
+        fetchedProfiles.push({
+          user_id: doc.id,
+          display_name: data.display_name || null,
+          email: data.email || null,
+          created_at: data.created_at?.toDate?.()?.toISOString() || new Date().toISOString(),
+        });
+      });
+      
+      // Sort locally by joining date descending
+      fetchedProfiles.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      setProfiles(fetchedProfiles);
 
-    const { count: totalRecords } = await supabase.from('financial_records').select('*', { count: 'exact', head: true });
+      // 2. Fetch total financial records count
+      const recordsRef = collection(db, 'financial_records');
+      const recordsSnap = await getDocs(recordsRef);
+      const totalRecords = recordsSnap.size;
 
-    setStats({
-      totalUsers: profilesData?.length || 0,
-      totalRecords: totalRecords || 0,
-      totalHabits: 0,
-    });
+      setStats({
+        totalUsers: fetchedProfiles.length,
+        totalRecords: totalRecords,
+        totalHabits: 0,
+      });
+    } catch (err) {
+      console.error('Error fetching admin data from Firestore:', err);
+    }
   };
 
   if (loading) return null;

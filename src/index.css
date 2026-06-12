@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -109,5 +109,42 @@
 
   .stat-card {
     @apply bg-card rounded-xl border border-border/50 p-5 shadow-sm transition-all duration-200 hover:shadow-md;
+  }
+
+  /* Custom thin scrollbars for grid views */
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* Habits specific layout styling */
+  .habit-header-week-1 { background-color: hsl(262 60% 55% / 0.15); color: hsl(262 60% 55%); border-color: hsl(262 60% 55% / 0.3); }
+  .habit-header-week-2 { background-color: hsl(200 70% 50% / 0.15); color: hsl(200 70% 50%); border-color: hsl(200 70% 50% / 0.3); }
+  .habit-header-week-3 { background-color: hsl(168 60% 40% / 0.15); color: hsl(168 60% 40%); border-color: hsl(168 60% 40% / 0.3); }
+  .habit-header-week-4 { background-color: hsl(330 60% 50% / 0.15); color: hsl(330 60% 50%); border-color: hsl(330 60% 50% / 0.3); }
+  .habit-header-week-5 { background-color: hsl(220 10% 50% / 0.15); color: hsl(220 10% 50%); border-color: hsl(220 10% 50% / 0.3); }
+
+  .habit-cell-week-1 { color: hsl(262 60% 55%); }
+  .habit-cell-week-2 { color: hsl(200 70% 50%); }
+  .habit-cell-week-3 { color: hsl(168 60% 40%); }
+  .habit-cell-week-4 { color: hsl(330 60% 50%); }
+  .habit-cell-week-5 { color: hsl(220 10% 50%); }
+
+  /* Glowing and shining effects for premium aesthetic */
+  .glow-progress {
+    box-shadow: 0 0 10px hsl(38 92% 50% / 0.5), 0 0 20px hsl(38 92% 50% / 0.3);
+  }
+  .glow-progress-green {
+    box-shadow: 0 0 10px hsl(142 60% 40% / 0.5), 0 0 20px hsl(142 60% 40% / 0.3);
   }
 }

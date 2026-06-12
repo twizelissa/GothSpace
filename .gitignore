@@ -24,3 +24,7 @@ oauth-credentials.local.json
 *.njsproj
 *.sln
 *.sw?
+
+# Private keys and env configs
+.env
+Firebase/

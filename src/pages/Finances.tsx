@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,38 +44,70 @@ const Finances = () => {
   const fetchRecords = async () => {
     const start = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
     const end = format(endOfMonth(selectedMonth), 'yyyy-MM-dd');
-    const { data } = await supabase
-      .from('financial_records')
-      .select('*')
-      .eq('user_id', user!.id)
-      .gte('record_date', start)
-      .lte('record_date', end)
-      .order('record_date', { ascending: false });
-    setRecords(data || []);
+    
+    try {
+      const recordsRef = collection(db, 'financial_records');
+      const q = query(
+        recordsRef,
+        where('user_id', '==', user!.id),
+        where('record_date', '>=', start),
+        where('record_date', '<=', end)
+      );
+      const querySnapshot = await getDocs(q);
+      const fetchedRecords: FinancialRecord[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        fetchedRecords.push({
+          id: doc.id,
+          type: data.type,
+          amount: Number(data.amount),
+          category: data.category,
+          description: data.description || null,
+          record_date: data.record_date,
+        });
+      });
+      // Sort locally to avoid needing complex composite index setups in Firestore
+      fetchedRecords.sort((a, b) => b.record_date.localeCompare(a.record_date));
+      setRecords(fetchedRecords);
+    } catch (err) {
+      console.error('Error fetching financial records from Firestore:', err);
+      toast.error('Failed to load records');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !category) return;
-    const { error } = await supabase.from('financial_records').insert({
-      user_id: user!.id,
-      type,
-      amount: parseFloat(amount),
-      category,
-      description: description || null,
-      record_date: date,
-    });
-    if (error) { toast.error('Failed to add record'); return; }
-    toast.success('Record added');
-    setAmount(''); setCategory(''); setDescription('');
-    setShowForm(false);
-    fetchRecords();
+    
+    try {
+      await addDoc(collection(db, 'financial_records'), {
+        user_id: user!.id,
+        type,
+        amount: parseFloat(amount),
+        category,
+        description: description || null,
+        record_date: date,
+        created_at: serverTimestamp()
+      });
+      toast.success('Record added');
+      setAmount(''); setCategory(''); setDescription('');
+      setShowForm(false);
+      fetchRecords();
+    } catch (err) {
+      console.error('Error adding record to Firestore:', err);
+      toast.error('Failed to add record');
+    }
   };
 
   const deleteRecord = async (id: string) => {
-    await supabase.from('financial_records').delete().eq('id', id);
-    toast.success('Record deleted');
-    fetchRecords();
+    try {
+      await deleteDoc(doc(db, 'financial_records', id));
+      toast.success('Record deleted');
+      fetchRecords();
+    } catch (err) {
+      console.error('Error deleting record from Firestore:', err);
+      toast.error('Failed to delete record');
+    }
   };
 
   const income = records.filter(r => r.type === 'income').reduce((s, r) => s + Number(r.amount), 0);
@@ -186,7 +219,7 @@ const Finances = () => {
         {records.map(r => (
           <div key={r.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-3">
-              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${r.type === 'income' ? 'bg-emerald-50 text-emerald-500' : 'bg-red-50 text-red-500'}`}>
+              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${r.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
                 {r.type === 'income' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
               </div>
               <div>
