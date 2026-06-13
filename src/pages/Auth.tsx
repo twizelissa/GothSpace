@@ -114,6 +114,10 @@ const Auth = () => {
             )}
             <span>Continue with Google</span>
           </button>
+          
+          <div className="mt-8 flex flex-col items-center gap-1.5 text-center text-3xs text-zinc-500 uppercase tracking-widest leading-relaxed">
+            <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> SSL Secured</span>
+          </div>
         </div>
       </div>
     </div>
