@@ -114,10 +114,6 @@ const Auth = () => {
             )}
             <span>Continue with Google</span>
           </button>
-          
-          <div className="mt-6 flex items-center justify-center">
-            <ShieldCheck className="h-4 w-4 text-emerald-500/80" />
-          </div>
         </div>
       </div>
     </div>
