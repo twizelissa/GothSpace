@@ -78,7 +78,7 @@ const Auth = () => {
               <h1 className="text-xl font-bold tracking-widest text-white uppercase">
                 ET24
               </h1>
-              <p className="text-3xs uppercase tracking-[0.25em] text-amber-500 font-semibold">
+              <p className="text-3xs uppercase tracking-[0.25em] text-zinc-500 font-semibold">
                 Gotham Workspace
               </p>
             </div>
@@ -114,10 +114,6 @@ const Auth = () => {
             )}
             <span>Continue with Google</span>
           </button>
-          
-          <div className="mt-8 flex flex-col items-center gap-1.5 text-center text-3xs text-zinc-500 uppercase tracking-widest leading-relaxed">
-            <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Secure Encryption Active</span>
-          </div>
         </div>
       </div>
     </div>

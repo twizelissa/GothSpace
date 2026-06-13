@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
   <defs>
-    <!-- Warm gold/bronze premium gradient representing Bruce Wayne style -->
+    <!-- Warm gold premium gradient representing Wayne Enterprises style -->
     <linearGradient id="goldGrad" x1="0%" y1="100%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#b45309" />   <!-- Bronze gold -->
       <stop offset="60%" stop-color="#fbbf24" />  <!-- Bright gold -->
@@ -12,19 +12,41 @@
   <rect width="100" height="100" rx="24" fill="#09090b" />
 
   <!-- Outer gold boundary ring -->
-  <rect x="3" y="3" width="94" height="94" rx="21" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" opacity="0.3" />
+  <rect x="4" y="4" width="92" height="92" rx="20" fill="none" stroke="url(#goldGrad)" stroke-width="1" opacity="0.2" />
 
-  <!-- Geometric Batwing Silhouette -->
-  <path d="M 50,32 
-           C 48,22 46,18 45,18 
-           C 44,22 40,30 36,32 
-           C 22,34 12,42 12,54 
-           C 12,68 28,62 34,60 
-           C 38,65 44,78 50,82 
-           C 56,78 62,65 66,60 
-           C 72,62 88,68 88,54 
-           C 88,42 78,34 64,32 
-           C 60,30 56,22 55,18 
-           C 54,18 52,22 50,32 Z" 
-        fill="url(#goldGrad)" />
+  <!-- Blueprint sketch lines (horizontal and vertical lines to reinforce the drawing aesthetic) -->
+  <line x1="50" y1="10" x2="50" y2="90" stroke="#18181b" stroke-width="0.75" stroke-dasharray="2 3" />
+  <line x1="10" y1="50" x2="90" y2="50" stroke="#18181b" stroke-width="0.75" stroke-dasharray="2 3" />
+  
+  <!-- The Batman Cowl Drawing Symbol (sketched lines, no fill) -->
+  <g stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    
+    <!-- Outer Cowl Silhouette Sketch -->
+    <path d="M 32,18 
+             L 36,36
+             C 24,42 22,54 22,66
+             C 22,76 34,84 50,84
+             C 66,84 78,76 78,66
+             C 78,54 76,42 64,36
+             L 68,18
+             C 64,25 58,28 50,28
+             C 42,28 36,25 32,18 Z" />
+
+    <!-- Nose / Brow Lines -->
+    <path d="M 50,28 L 50,60" opacity="0.3" stroke-width="1.5" />
+    <path d="M 43,50 L 50,56 L 57,50" />
+    
+    <!-- Left Sketched Eye Slit -->
+    <path d="M 38,48 C 39,46 44,45 46,47 C 45,49 41,51 38,48 Z" fill="url(#goldGrad)" stroke-width="1" />
+
+    <!-- Right Sketched Eye Slit -->
+    <path d="M 62,48 C 61,46 56,45 54,47 C 55,49 59,51 62,48 Z" fill="url(#goldGrad)" stroke-width="1" />
+    
+    <!-- Mouth / Chin Area Opening Line -->
+    <path d="M 34,74 C 38,68 44,66 50,66 C 56,66 62,68 66,74" opacity="0.7" stroke-width="2" />
+
+    <!-- Extra sketched accent lines on the cheek to make it look hand-drawn -->
+    <path d="M 28,60 L 32,66" stroke-width="1" opacity="0.5" />
+    <path d="M 72,60 L 68,66" stroke-width="1" opacity="0.5" />
+  </g>
 </svg>
