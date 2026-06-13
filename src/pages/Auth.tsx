@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { auth, db } from '@/lib/firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const Auth = () => {
   const { user, loading } = useAuth();
