@@ -73,13 +73,13 @@ const Auth = () => {
           
           {/* Logo & Brand Header */}
           <div className="flex flex-col items-center gap-3.5 mb-8">
-            <img src="/logo.svg" alt="ET24 Logo" className="h-16 w-16 rounded-xl shadow-lg shadow-black" />
+            <img src="/logo.svg" alt="GOTHAM Logo" className="h-16 w-16 rounded-xl shadow-lg shadow-black" />
             <div className="space-y-1">
               <h1 className="text-xl font-bold tracking-widest text-white uppercase">
-                ET24
+                GOTHAM
               </h1>
               <p className="text-3xs uppercase tracking-[0.25em] text-zinc-500 font-semibold">
-                Gotham Workspace
+                WORKSPACE
               </p>
             </div>
           </div>

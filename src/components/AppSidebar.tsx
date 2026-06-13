@@ -87,7 +87,7 @@ const AppSidebar = () => {
       return;
     }
     if (Notification.permission === 'granted') {
-      new Notification('ET24 Habit Reminder 🚀', {
+      new Notification('GOTHAM Habit Reminder 🚀', {
         body: 'Success! Your browser push notifications are active and ready.',
         icon: '/logo.svg'
       });
@@ -95,7 +95,7 @@ const AppSidebar = () => {
     } else {
       Notification.requestPermission().then(permission => {
         if (permission === 'granted') {
-          new Notification('ET24 Habit Reminder 🚀', {
+          new Notification('GOTHAM Habit Reminder 🚀', {
             body: 'Success! Your browser push notifications are active and ready.',
             icon: '/logo.svg'
           });
@@ -152,9 +152,9 @@ const AppSidebar = () => {
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
       <div className="flex h-16 items-center gap-3 px-6">
-        <img src="/logo.svg" alt="ET24 logo" className="h-8 w-8 rounded-lg shadow-sm" />
+        <img src="/logo.svg" alt="GOTHAM logo" className="h-8 w-8 rounded-lg shadow-sm" />
         <h1 className="text-sm font-bold bg-gradient-to-r from-amber-500 to-yellow-400 bg-clip-text text-transparent tracking-widest uppercase">
-          ET24
+          GOTHAM
         </h1>
       </div>
 
