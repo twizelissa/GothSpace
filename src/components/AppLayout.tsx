@@ -42,14 +42,14 @@ const AppLayout = () => {
       
       if (currentHourMin === notificationSettings.time) {
         const todayStr = format(now, 'yyyy-MM-dd');
-        const lastNotified = localStorage.getItem('gotham_last_push_date');
+        const lastNotified = localStorage.getItem('goth_last_push_date');
         
         if (lastNotified !== todayStr && 'Notification' in window && Notification.permission === 'granted') {
-          new Notification('GOTHAM Habit Reminder 🚀', {
+          new Notification('GOTH Habit Reminder 🚀', {
             body: 'Hey! Time to log your habits and track your mindset for today. Keep your streak alive! 🔥',
             icon: '/logo.svg',
           });
-          localStorage.setItem('gotham_last_push_date', todayStr);
+          localStorage.setItem('goth_last_push_date', todayStr);
         }
       }
     };
