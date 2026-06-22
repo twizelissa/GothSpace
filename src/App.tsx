@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Finances from "./pages/Finances";
 import Habits from "./pages/Habits";
 import Admin from "./pages/Admin";
+import Applications from "./pages/Applications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/finances" element={<Finances />} />
                 <Route path="/habits" element={<Habits />} />
+                <Route path="/applications" element={<Applications />} />
                 <Route path="/admin" element={<Admin />} />
               </Route>
               <Route path="*" element={<NotFound />} />

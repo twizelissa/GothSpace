@@ -45,8 +45,8 @@ const AppLayout = () => {
         const lastNotified = localStorage.getItem('goth_last_push_date');
         
         if (lastNotified !== todayStr && 'Notification' in window && Notification.permission === 'granted') {
-          new Notification('GOTH Habit Reminder 🚀', {
-            body: 'Hey! Time to log your habits and track your mindset for today. Keep your streak alive! 🔥',
+          new Notification('GOTH Habit Reminder', {
+            body: 'Time to log your habits and track your mindset for today. Keep your streak active.',
             icon: '/logo.svg',
           });
           localStorage.setItem('goth_last_push_date', todayStr);
@@ -75,7 +75,7 @@ const AppLayout = () => {
     <div className="flex h-screen overflow-hidden bg-background">
       <AppSidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl p-6 lg:p-8">
+        <div className="mx-auto max-w-6xl p-6 lg:p-8 pb-24 md:pb-8">
           <Outlet />
         </div>
       </main>

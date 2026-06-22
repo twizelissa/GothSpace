@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Wallet, Target, Shield, LogOut, Settings, 
-  Moon, Sun, Mail, MessageSquare 
+  Moon, Sun, Mail, MessageSquare, Briefcase 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -69,7 +69,7 @@ const AppSidebar = () => {
       if ('Notification' in window) {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-          toast.success('Browser notification permission granted! 🔔');
+          toast.success('Browser notification permission granted.');
         } else if (permission === 'denied') {
           toast.error('Permission denied. Please enable notifications in your browser settings.');
           setBrowserNotificationsEnabled(false);
@@ -87,7 +87,7 @@ const AppSidebar = () => {
       return;
     }
     if (Notification.permission === 'granted') {
-      new Notification('GOTH Habit Reminder 🚀', {
+      new Notification('GOTH Habit Reminder', {
         body: 'Success! Your browser push notifications are active and ready.',
         icon: '/logo.svg'
       });
@@ -95,7 +95,7 @@ const AppSidebar = () => {
     } else {
       Notification.requestPermission().then(permission => {
         if (permission === 'granted') {
-          new Notification('GOTH Habit Reminder 🚀', {
+          new Notification('GOTH Habit Reminder', {
             body: 'Success! Your browser push notifications are active and ready.',
             icon: '/logo.svg'
           });
@@ -146,11 +146,13 @@ const AppSidebar = () => {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/finances', icon: Wallet, label: 'Finances' },
     { to: '/habits', icon: Target, label: 'Habits' },
+    { to: '/applications', icon: Briefcase, label: 'Applications' },
     ...(isAdmin ? [{ to: '/admin', icon: Shield, label: 'Admin' }] : []),
   ];
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
+    <>
+      <aside className="hidden md:flex h-screen w-64 flex-col border-r border-border bg-card">
       <div className="flex h-16 items-center gap-3 px-6">
         <img src="/logo.svg" alt="GOTH logo" className="h-8 w-8 rounded-lg shadow-sm" />
         <h1 className="text-sm font-bold bg-gradient-to-r from-amber-500 to-yellow-400 bg-clip-text text-transparent tracking-widest uppercase">
@@ -352,11 +354,27 @@ const AppSidebar = () => {
                 </div>
               </div>
 
-              <DialogFooter className="border-t border-border/50 pt-4 flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setIsOpen(false)} className="shadow-sm">Cancel</Button>
-                <Button size="sm" onClick={saveSettings} disabled={saving} className="shadow-sm">
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
+              <DialogFooter className="border-t border-border/50 pt-4 flex flex-col sm:flex-row gap-2 justify-between items-center w-full">
+                <div className="flex w-full sm:w-auto justify-start sm:order-first order-last">
+                  <Button 
+                    type="button"
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => {
+                      setIsOpen(false);
+                      signOut();
+                    }}
+                    className="w-full sm:w-auto shadow-sm gap-1.5 h-8.5 font-semibold"
+                  >
+                    <LogOut className="h-4 w-4" /> Sign Out
+                  </Button>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsOpen(false)} className="shadow-sm">Cancel</Button>
+                  <Button type="button" size="sm" onClick={saveSettings} disabled={saving} className="shadow-sm">
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -371,6 +389,34 @@ const AppSidebar = () => {
         </button>
       </div>
     </aside>
+
+    <div className="flex md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 bg-card/85 backdrop-blur-md border-t border-border/80 px-2 py-1 justify-around items-center select-none shadow-lg animate-in slide-in-from-bottom duration-300">
+      {links.map(({ to, icon: Icon, label }) => (
+        <Link
+          key={to}
+          to={to}
+          className={cn(
+            'flex flex-col items-center justify-center gap-1 rounded-lg py-1 text-3xs font-bold transition-colors flex-1',
+            pathname === to
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Icon className="h-4.5 w-4.5" />
+          <span className="text-[9px] font-semibold">{label}</span>
+        </Link>
+      ))}
+
+      {/* Settings Dialog Trigger for Mobile */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="flex flex-col items-center justify-center gap-1 rounded-lg py-1 text-3xs font-bold text-muted-foreground hover:text-foreground flex-1"
+      >
+        <Settings className="h-4.5 w-4.5" />
+        <span className="text-[9px] font-semibold">Settings</span>
+      </button>
+    </div>
+  </>
   );
 };
 
