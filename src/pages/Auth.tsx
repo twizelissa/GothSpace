@@ -66,10 +66,10 @@ const Auth = () => {
 
       {/* Centered Minimalist Glassmorphic Login Card */}
       <div className="relative z-10 w-full max-w-sm px-4">
-        <div className="glass-card bg-zinc-950/80 border border-zinc-800/80 rounded-2xl p-8 shadow-2xl relative overflow-hidden text-center">
+        <div className="glass-card bg-zinc-950/90 border border-zinc-800/60 rounded-3xl p-9 shadow-2xl shadow-black/80 relative overflow-hidden text-center backdrop-blur-xl transition-all duration-300 hover:border-zinc-700/60">
           
           {/* Gold Gradient Top Border Accent */}
-          <div className="absolute top-0 left-0 w-full h-[2.5px] bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-300" />
+          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-amber-600 via-amber-400 to-yellow-300 shadow-sm" />
           
           {/* Logo & Brand Header */}
           <div className="flex flex-col items-center gap-3.5 mb-8">
@@ -91,7 +91,7 @@ const Auth = () => {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 text-center">
+            <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 text-center animate-in fade-in duration-200">
               {error}
             </div>
           )}
@@ -100,7 +100,7 @@ const Auth = () => {
           <button
             onClick={handleGoogle}
             disabled={busy}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all duration-200 hover:bg-zinc-900 hover:border-amber-500/40 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="relative flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md py-3.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all duration-300 hover:bg-zinc-900 hover:border-amber-500 hover:shadow-amber-500/10 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed group overflow-hidden"
           >
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />

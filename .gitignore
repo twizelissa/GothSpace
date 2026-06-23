@@ -28,3 +28,4 @@ oauth-credentials.local.json
 # Private keys and env configs
 .env
 Firebase/
+.vercel

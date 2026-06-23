@@ -392,8 +392,8 @@ const Applications = () => {
                 };
 
                 return (
-                  <div key={app.id} className="relative rounded-xl border border-border bg-card p-4 hover:shadow-md transition-all duration-200 flex flex-col justify-between gap-3 group">
-                    <div className="flex items-start justify-between gap-3">
+                  <div key={app.id} className="relative rounded-xl border border-border/60 bg-card p-5 hover:shadow-lg hover:border-border/100 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between gap-4 group">
+                    <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0 ${
                           app.type === 'job' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-purple-500/10 text-purple-400'

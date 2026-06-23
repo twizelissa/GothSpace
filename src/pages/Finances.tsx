@@ -448,7 +448,7 @@ const Finances = () => {
           {/* Records list */}
           <div className="space-y-2">
             {records.map(r => (
-              <div key={r.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+              <div key={r.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:shadow-sm hover:border-border/80 transition-all duration-200 group">
                 <div className="flex items-center gap-3">
                   <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${r.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
                     {r.type === 'income' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
@@ -462,16 +462,16 @@ const Finances = () => {
                   <span className={`font-semibold ${r.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
                     {r.type === 'income' ? '+' : '-'}${Number(r.amount).toLocaleString()}
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
                     <button 
                       onClick={() => handleOpenEditRecord(r)} 
-                      className="text-muted-foreground hover:text-foreground transition-colors p-1 hover:bg-muted rounded-lg"
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1.5 hover:bg-muted rounded-lg"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button 
                       onClick={() => deleteRecord(r.id)} 
-                      className="text-muted-foreground hover:text-destructive transition-colors p-1 hover:bg-muted rounded-lg"
+                      className="text-muted-foreground hover:text-destructive transition-colors p-1.5 hover:bg-muted rounded-lg"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

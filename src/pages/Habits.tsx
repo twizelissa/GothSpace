@@ -700,12 +700,12 @@ const Habits = () => {
                               >
                                 <button
                                   onClick={() => toggleLog(h.id, day)}
-                                  className={`mx-auto flex h-[22px] w-[22px] items-center justify-center rounded border transition-all ${
+                                  className={`mx-auto flex h-[22px] w-[22px] items-center justify-center rounded border transition-all hover:scale-105 active:scale-95 ${
                                     logState === 'ticked' 
                                       ? 'border-transparent text-white shadow-sm font-bold animate-in zoom-in-50 duration-150' 
                                       : logState === 'crossed'
                                       ? 'border-transparent text-white bg-rose-500 shadow-sm font-bold animate-in zoom-in-50 duration-150'
-                                      : 'border-border/80 bg-background/50 hover:bg-muted/80 text-transparent hover:text-muted-foreground/30'
+                                      : 'border-border/80 bg-background/50 hover:bg-muted/80 hover:border-muted-foreground/20 text-transparent'
                                   }`}
                                   style={{ 
                                     backgroundColor: logState === 'ticked' 
@@ -719,9 +719,7 @@ const Habits = () => {
                                     <Check className="h-3.5 w-3.5 stroke-[3]" />
                                   ) : logState === 'crossed' ? (
                                     <X className="h-3.5 w-3.5 stroke-[3]" />
-                                  ) : (
-                                    <Check className="h-3.5 w-3.5 stroke-[3]" />
-                                  )}
+                                  ) : null}
                                 </button>
                               </td>
                             );
