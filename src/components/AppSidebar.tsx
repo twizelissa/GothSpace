@@ -203,68 +203,90 @@ const AppSidebar = () => {
                 <Settings className="h-4.5 w-4.5" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md bg-card border border-border shadow-2xl rounded-2xl p-6">
-              <DialogHeader>
-                <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-primary" /> Profile & Reminder Settings
+            <DialogContent className="max-w-md bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl rounded-3xl p-6 overflow-hidden">
+              {/* Premium Top Border Accent */}
+              <div className="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-teal-500 via-emerald-400 to-cyan-400" />
+              
+              <DialogHeader className="pb-3 border-b border-border/40">
+                <DialogTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
+                  <div className="p-1 rounded-lg bg-primary/10 text-primary shadow-inner">
+                    <Settings className="h-4.5 w-4.5 animate-spin-slow" />
+                  </div>
+                  Profile & Reminder Settings
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
+                <DialogDescription className="text-xs text-muted-foreground mt-1">
                   Configure display settings, daily reminders, and light/dark theme layout mode.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4 py-3 select-none">
-                {/* Theme Mode Toggle */}
-                <div className="flex items-center justify-between border-b border-border/50 pb-4">
-                  <div>
-                    <Label className="text-sm font-semibold">Theme Mode</Label>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">Toggle between dark and light themes</p>
+              <div className="space-y-4 py-4 select-none max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                {/* Theme Mode Toggle Card */}
+                <div className="flex items-center justify-between p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-bold text-foreground">Theme Mode</Label>
+                    <p className="text-[10px] text-muted-foreground">Toggle between dark and light themes</p>
                   </div>
                   <Button 
+                    type="button"
                     variant="outline" 
                     size="sm" 
                     onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    className="gap-2 shadow-sm"
+                    className="gap-2 shadow-sm rounded-xl border-border/60 hover:bg-muted font-bold text-xs"
                   >
-                    {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-indigo-500" />}
+                    {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-500 animate-pulse" /> : <Moon className="h-4 w-4 text-indigo-400" />}
                     {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
                   </Button>
                 </div>
 
-                {/* Name Edit */}
-                <div className="space-y-1.5 border-b border-border/50 pb-4">
-                  <Label htmlFor="display-name" className="text-xs font-bold text-muted-foreground/80 uppercase tracking-wider">Display Name</Label>
+                {/* Name Edit Card */}
+                <div className="space-y-2 p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
+                  <Label htmlFor="display-name" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Display Name</Label>
                   <Input 
                     id="display-name" 
                     placeholder="Your Name" 
                     value={displayName} 
                     onChange={e => setDisplayName(e.target.value)} 
-                    className="h-9 shadow-sm"
+                    className="h-9 shadow-sm rounded-xl bg-background/50 border-border/50 focus:border-primary/50 text-xs"
                   />
                 </div>
 
-                {/* Browser Push Notifications */}
-                <div className="space-y-3 border-b border-border/50 pb-4">
+                {/* Browser Push Notifications Card */}
+                <div className={`p-3.5 rounded-2xl border transition-all duration-300 ${
+                  browserNotificationsEnabled 
+                    ? 'border-purple-500/30 bg-purple-500/5 shadow-sm shadow-purple-500/5' 
+                    : 'border-border/40 bg-muted/20 hover:bg-muted/30'
+                }`}>
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-semibold flex items-center gap-2">
-                      <Target className="h-4 w-4 text-purple-500 animate-pulse" /> Browser Push Notifications
-                    </Label>
-                    <input 
-                      type="checkbox" 
-                      checked={browserNotificationsEnabled} 
-                      onChange={e => handleBrowserNotificationToggle(e.target.checked)} 
-                      className="h-4.5 w-4.5 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
-                    />
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-bold flex items-center gap-1.5">
+                        <Target className={`h-4 w-4 text-purple-500 ${browserNotificationsEnabled ? 'animate-pulse' : ''}`} />
+                        Browser Push Alerts
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">Receive daily habit prompts</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleBrowserNotificationToggle(!browserNotificationsEnabled)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none ${
+                        browserNotificationsEnabled ? 'bg-purple-600' : 'bg-muted border border-border'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                          browserNotificationsEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
                   </div>
                   {browserNotificationsEnabled && (
-                    <div className="grid grid-cols-3 gap-2 items-center animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3.5 border-t border-purple-500/10 items-center animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="col-span-2">
                         <Button 
                           type="button" 
                           variant="outline" 
                           size="sm"
                           onClick={sendTestNotification}
-                          className="w-full text-xs h-8.5 font-semibold gap-1.5 shadow-sm"
+                          className="w-full text-xs h-8.5 font-bold gap-1.5 shadow-sm rounded-xl border-purple-500/20 text-purple-400 hover:bg-purple-500 hover:text-white hover:border-transparent transition-all duration-200"
                         >
                           Send Test Alert
                         </Button>
@@ -274,35 +296,50 @@ const AppSidebar = () => {
                           value={reminderTime} 
                           onChange={e => setReminderTime(e.target.value)} 
                           type="time"
-                          className="h-8.5 text-xs shadow-sm"
+                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-purple-500/10 text-center font-semibold"
                         />
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Email Reminders */}
-                <div className="space-y-3 border-b border-border/50 pb-4">
+                {/* Email Reminders Card */}
+                <div className={`p-3.5 rounded-2xl border transition-all duration-300 ${
+                  emailEnabled 
+                    ? 'border-indigo-500/30 bg-indigo-500/5 shadow-sm shadow-indigo-500/5' 
+                    : 'border-border/40 bg-muted/20 hover:bg-muted/30'
+                }`}>
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-semibold flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-indigo-500" /> Daily Email Reminders
-                    </Label>
-                    <input 
-                      type="checkbox" 
-                      checked={emailEnabled} 
-                      onChange={e => setEmailEnabled(e.target.checked)} 
-                      className="h-4.5 w-4.5 rounded border-border text-primary focus:ring-primary accent-primary"
-                    />
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-bold flex items-center gap-1.5">
+                        <Mail className={`h-4 w-4 text-indigo-500 ${emailEnabled ? 'animate-bounce-slow' : ''}`} />
+                        Daily Email Updates
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">Receive updates in your inbox</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEmailEnabled(!emailEnabled)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none ${
+                        emailEnabled ? 'bg-indigo-600' : 'bg-muted border border-border'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                          emailEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
                   </div>
                   {emailEnabled && (
-                    <div className="grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3.5 border-t border-indigo-500/10 items-center animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="col-span-2">
                         <Input 
                           placeholder="name@email.com" 
                           value={reminderEmail} 
                           onChange={e => setReminderEmail(e.target.value)} 
                           type="email"
-                          className="h-8.5 text-xs shadow-sm"
+                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-indigo-500/10"
                         />
                       </div>
                       <div>
@@ -310,35 +347,50 @@ const AppSidebar = () => {
                           value={reminderTime} 
                           onChange={e => setReminderTime(e.target.value)} 
                           type="time"
-                          className="h-8.5 text-xs shadow-sm"
+                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-indigo-500/10 text-center font-semibold"
                         />
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* WhatsApp Reminders */}
-                <div className="space-y-3">
+                {/* WhatsApp Reminders Card */}
+                <div className={`p-3.5 rounded-2xl border transition-all duration-300 ${
+                  whatsappEnabled 
+                    ? 'border-emerald-500/30 bg-emerald-500/5 shadow-sm shadow-emerald-500/5' 
+                    : 'border-border/40 bg-muted/20 hover:bg-muted/30'
+                }`}>
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-semibold flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-emerald-500" /> WhatsApp Reminders
-                    </Label>
-                    <input 
-                      type="checkbox" 
-                      checked={whatsappEnabled} 
-                      onChange={e => setWhatsappEnabled(e.target.checked)} 
-                      className="h-4.5 w-4.5 rounded border-border text-primary focus:ring-primary accent-primary"
-                    />
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-bold flex items-center gap-1.5">
+                        <MessageSquare className={`h-4 w-4 text-emerald-500 ${whatsappEnabled ? 'animate-pulse' : ''}`} />
+                        WhatsApp Prompts
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">Receive logs directly on phone</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setWhatsappEnabled(!whatsappEnabled)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none ${
+                        whatsappEnabled ? 'bg-emerald-600' : 'bg-muted border border-border'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                          whatsappEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
                   </div>
                   {whatsappEnabled && (
-                    <div className="grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3.5 border-t border-emerald-500/10 items-center animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="col-span-2">
                         <Input 
                           placeholder="e.g. +1 555 123 4567" 
                           value={reminderPhone} 
                           onChange={e => setReminderPhone(e.target.value)} 
                           type="tel"
-                          className="h-8.5 text-xs shadow-sm"
+                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-emerald-500/10"
                         />
                       </div>
                       <div>
@@ -346,7 +398,7 @@ const AppSidebar = () => {
                           value={reminderTime} 
                           onChange={e => setReminderTime(e.target.value)} 
                           type="time"
-                          className="h-8.5 text-xs shadow-sm"
+                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-emerald-500/10 text-center font-semibold"
                         />
                       </div>
                     </div>
@@ -354,24 +406,30 @@ const AppSidebar = () => {
                 </div>
               </div>
 
-              <DialogFooter className="border-t border-border/50 pt-4 flex flex-col sm:flex-row gap-2 justify-between items-center w-full">
+              <DialogFooter className="border-t border-border/40 pt-4 flex flex-col sm:flex-row gap-2 justify-between items-center w-full">
                 <div className="flex w-full sm:w-auto justify-start sm:order-first order-last">
                   <Button 
                     type="button"
-                    variant="destructive" 
+                    variant="outline" 
                     size="sm" 
                     onClick={() => {
                       setIsOpen(false);
                       signOut();
                     }}
-                    className="w-full sm:w-auto shadow-sm gap-1.5 h-8.5 font-semibold"
+                    className="w-full sm:w-auto shadow-sm gap-1.5 h-9 font-bold text-xs border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-200 active:scale-95"
                   >
                     <LogOut className="h-4 w-4" /> Sign Out
                   </Button>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto justify-end">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsOpen(false)} className="shadow-sm">Cancel</Button>
-                  <Button type="button" size="sm" onClick={saveSettings} disabled={saving} className="shadow-sm">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setIsOpen(false)} className="rounded-xl font-semibold text-xs text-muted-foreground hover:text-foreground">Cancel</Button>
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    onClick={saveSettings} 
+                    disabled={saving} 
+                    className="w-full sm:w-auto text-xs font-bold h-9 px-4 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-teal-500/20 transition-all duration-200 active:scale-95 disabled:opacity-50"
+                  >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </div>

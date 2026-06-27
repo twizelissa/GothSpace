@@ -18,6 +18,36 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const originalBodyBg = body.style.backgroundColor;
+    const originalHtmlBg = html.style.backgroundColor;
+    const hadDarkClass = html.classList.contains('dark');
+    const hadLightClass = html.classList.contains('light');
+
+    // Force dark background styling to prevent white leaks
+    html.style.backgroundColor = '#09090b';
+    body.style.backgroundColor = '#09090b';
+    
+    // Temporarily force dark class for text & layout rendering on auth page
+    html.classList.add('dark');
+    html.classList.remove('light');
+
+    return () => {
+      html.style.backgroundColor = originalHtmlBg;
+      body.style.backgroundColor = originalBodyBg;
+      
+      // Restore original theme classes
+      if (!hadDarkClass) {
+        html.classList.remove('dark');
+      }
+      if (hadLightClass) {
+        html.classList.add('light');
+      }
+    };
+  }, []);
+
   const handleGoogle = async () => {
     setError(null);
     setBusy(true);
