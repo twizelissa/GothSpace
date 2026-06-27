@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
-type Habit = { id: string; name: string; color: string };
+type Habit = { id: string; name: string; color: string; created_at?: any };
 type HabitLog = { habit_id: string; log_date: string; completed?: boolean };
 type MindsetLog = {
   log_date: string;
@@ -38,6 +38,35 @@ type MindsetLog = {
 };
 
 type MetricType = 'mood' | 'energy' | 'focus' | 'motivation';
+
+const isDayBeforeHabitCreation = (day: Date, createdAt: any) => {
+  if (!createdAt) return false;
+  
+  // Handle Firestore Timestamp or Date object or String
+  let createdDate: Date;
+  if (createdAt && typeof createdAt.toDate === 'function') {
+    createdDate = createdAt.toDate();
+  } else if (createdAt?.seconds) {
+    createdDate = new Date(createdAt.seconds * 1000);
+  } else {
+    createdDate = new Date(createdAt);
+  }
+
+  if (isNaN(createdDate.getTime())) return false;
+
+  const dYear = day.getFullYear();
+  const dMonth = day.getMonth();
+  const dDate = day.getDate();
+  
+  const cYear = createdDate.getFullYear();
+  const cMonth = createdDate.getMonth();
+  const cDate = createdDate.getDate();
+  
+  if (dYear < cYear) return true;
+  if (dYear === cYear && dMonth < cMonth) return true;
+  if (dYear === cYear && dMonth === cMonth && dDate < cDate) return true;
+  return false;
+};
 
 const Habits = () => {
   const { user } = useAuth();
@@ -163,6 +192,7 @@ const Habits = () => {
         id: doc.id,
         name: data.name,
         color: data.color || '#14B8A6',
+        created_at: data.created_at || null,
       });
     });
     setHabits(fetchedHabits);
@@ -501,6 +531,12 @@ const Habits = () => {
 
   const stats = getMonthStats();
 
+  const joinDate = user?.metadata?.creationTime ? new Date(user.metadata.creationTime) : new Date();
+  const prevMonthDate = addMonths(selectedDate, -1);
+  const isPrevMonthDisabled = startOfMonth(prevMonthDate) < startOfMonth(joinDate);
+  const nextMonthDate = addMonths(selectedDate, 1);
+  const isNextMonthDisabled = startOfMonth(nextMonthDate) > startOfMonth(new Date());
+
   return (
     <div className="space-y-8 pb-10">
       {/* HEADER CONTROLS */}
@@ -508,9 +544,13 @@ const Habits = () => {
         <div>
           <div className="flex items-center gap-3">
             <button 
-              disabled
+              disabled={isPrevMonthDisabled}
               onClick={() => setSelectedDate(addMonths(selectedDate, -1))}
-              className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground/35 opacity-45 cursor-not-allowed"
+              className={`p-1.5 rounded-lg border border-border bg-card transition-colors ${
+                isPrevMonthDisabled 
+                  ? 'text-muted-foreground/35 opacity-45 cursor-not-allowed' 
+                  : 'hover:bg-muted text-muted-foreground cursor-pointer'
+              }`}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -518,9 +558,13 @@ const Habits = () => {
               {format(selectedDate, 'MMMM yyyy')}
             </h1>
             <button 
-              disabled
+              disabled={isNextMonthDisabled}
               onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
-              className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground/35 opacity-45 cursor-not-allowed"
+              className={`p-1.5 rounded-lg border border-border bg-card transition-colors ${
+                isNextMonthDisabled 
+                  ? 'text-muted-foreground/35 opacity-45 cursor-not-allowed' 
+                  : 'hover:bg-muted text-muted-foreground cursor-pointer'
+              }`}
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -696,36 +740,42 @@ const Habits = () => {
                           {weeks[activeWeekIndex]?.days.map(day => {
                             const logState = getLogState(h.id, day);
                             const isTodayCell = isToday(day);
+                            const isBeforeCreation = isDayBeforeHabitCreation(day, h.created_at);
+                            const isClickable = isTodayCell && !isBeforeCreation;
                             return (
                               <td 
                                 key={day.toISOString()} 
                                 className="py-2.5 px-0.5 text-center border-r border-border/30 last:border-r-2"
                               >
                                 <button
-                                  disabled={!isTodayCell}
-                                  onClick={() => isTodayCell && toggleLog(h.id, day)}
+                                  disabled={!isClickable}
+                                  onClick={() => isClickable && toggleLog(h.id, day)}
                                   className={`mx-auto flex h-[22px] w-[22px] items-center justify-center rounded border transition-all ${
-                                    isTodayCell 
+                                    isClickable 
                                       ? 'hover:scale-105 active:scale-95 cursor-pointer' 
+                                      : isBeforeCreation
+                                      ? 'opacity-10 cursor-not-allowed bg-transparent border-transparent border-none'
                                       : 'opacity-45 cursor-not-allowed'
                                   } ${
-                                    logState === 'ticked' 
+                                    !isBeforeCreation && logState === 'ticked' 
                                       ? 'border-transparent text-white shadow-sm font-bold animate-in zoom-in-50 duration-150' 
-                                      : logState === 'crossed'
+                                      : !isBeforeCreation && logState === 'crossed'
                                       ? 'border-transparent text-white bg-rose-500 shadow-sm font-bold animate-in zoom-in-50 duration-150'
+                                      : isBeforeCreation 
+                                      ? 'border-transparent bg-transparent text-transparent pointer-events-none'
                                       : 'border-border/80 bg-background/50 hover:bg-muted/80 hover:border-muted-foreground/20 text-transparent'
                                   }`}
                                   style={{ 
-                                    backgroundColor: logState === 'ticked' 
+                                    backgroundColor: (!isBeforeCreation && logState === 'ticked') 
                                       ? weeks[activeWeekIndex].checkColor 
-                                      : logState === 'crossed' 
+                                      : (!isBeforeCreation && logState === 'crossed') 
                                       ? 'hsl(var(--destructive))' 
                                       : 'transparent' 
                                   }}
                                 >
-                                  {logState === 'ticked' ? (
+                                  {!isBeforeCreation && logState === 'ticked' ? (
                                     <Check className="h-3.5 w-3.5 stroke-[3]" />
-                                  ) : logState === 'crossed' ? (
+                                  ) : !isBeforeCreation && logState === 'crossed' ? (
                                     <X className="h-3.5 w-3.5 stroke-[3]" />
                                   ) : null}
                                 </button>
