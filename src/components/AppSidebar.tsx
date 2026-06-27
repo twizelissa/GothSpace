@@ -325,7 +325,7 @@ const AppSidebar = () => {
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
-            <Icon icon={icon} className={cn("h-5 w-5", pathname === to ? "text-primary" : "text-muted-foreground")} />
+            <Icon icon={icon} className="h-5 w-5 text-primary" />
             {label}
           </Link>
         ))}
@@ -338,13 +338,13 @@ const AppSidebar = () => {
             <div className="flex items-center gap-2 min-w-0 flex-1 hover:bg-muted/40 p-1.5 rounded-lg cursor-pointer transition-colors">
               <div className="relative flex-shrink-0">
                 {user?.photoURL ? (
-                  <img src={user.photoURL} alt="Profile" className="h-8.5 w-8.5 rounded-full object-cover shadow-sm" />
+                  <img src={user.photoURL} alt="Profile" className="h-9 w-9 rounded-full object-cover shadow-sm" />
                 ) : (
-                  <div className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-sm">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-sm">
                     {displayName?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
                   </div>
                 )}
-                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card bg-emerald-500" />
+                <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card bg-emerald-500" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-foreground truncate leading-none">
@@ -785,7 +785,7 @@ const AppSidebar = () => {
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          <Icon icon={icon} className="h-5 w-5" />
+          <Icon icon={icon} className="h-5 w-5 text-primary" />
           <span className="text-[9px] font-semibold">{label}</span>
         </Link>
       ))}
@@ -795,7 +795,7 @@ const AppSidebar = () => {
         onClick={() => setIsOpen(true)}
         className="flex flex-col items-center justify-center gap-1 rounded-lg py-1 text-3xs font-bold text-muted-foreground hover:text-foreground flex-1"
       >
-        <Icon icon="solar:settings-bold-duotone" className="h-5 w-5" />
+        <Icon icon="solar:settings-bold-duotone" className="h-5 w-5 text-primary" />
         <span className="text-[9px] font-semibold">Settings</span>
       </button>
     </div>
