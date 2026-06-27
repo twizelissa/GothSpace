@@ -1,10 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, Wallet, Target, Shield, LogOut, Settings, 
-  Moon, Sun, Mail, MessageSquare, Briefcase, Pencil,
-  Mic, MicOff, VolumeX, Headphones
-} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -301,11 +296,11 @@ const AppSidebar = () => {
   };
 
   const links = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/finances', icon: Wallet, label: 'Finances' },
-    { to: '/habits', icon: Target, label: 'Habits' },
-    { to: '/applications', icon: Briefcase, label: 'Applications' },
-    ...(isAdmin ? [{ to: '/admin', icon: Shield, label: 'Admin' }] : []),
+    { to: '/dashboard', icon: "solar:widget-bold-duotone", label: 'Dashboard' },
+    { to: '/finances', icon: "solar:wallet-bold-duotone", label: 'Finances' },
+    { to: '/habits', icon: "solar:checklist-minimalistic-bold-duotone", label: 'Habits' },
+    { to: '/applications', icon: "solar:case-bold-duotone", label: 'Applications' },
+    ...(isAdmin ? [{ to: '/admin', icon: "solar:shield-keyhole-bold-duotone", label: 'Admin' }] : []),
   ];
 
   return (
@@ -319,7 +314,7 @@ const AppSidebar = () => {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {links.map(({ to, icon: Icon, label }) => (
+        {links.map(({ to, icon, label }) => (
           <Link
             key={to}
             to={to}
@@ -330,7 +325,7 @@ const AppSidebar = () => {
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
-            <Icon className="h-4 w-4" />
+            <Icon icon={icon} className="h-5 w-5" />
             {label}
           </Link>
         ))}
@@ -769,7 +764,7 @@ const AppSidebar = () => {
     </aside>
 
     <div className="flex md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 bg-card/85 backdrop-blur-md border-t border-border/80 px-2 py-1 justify-around items-center select-none shadow-lg animate-in slide-in-from-bottom duration-300">
-      {links.map(({ to, icon: Icon, label }) => (
+      {links.map(({ to, icon, label }) => (
         <Link
           key={to}
           to={to}
@@ -780,7 +775,7 @@ const AppSidebar = () => {
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          <Icon className="h-4.5 w-4.5" />
+          <Icon icon={icon} className="h-5 w-5" />
           <span className="text-[9px] font-semibold">{label}</span>
         </Link>
       ))}
@@ -790,7 +785,7 @@ const AppSidebar = () => {
         onClick={() => setIsOpen(true)}
         className="flex flex-col items-center justify-center gap-1 rounded-lg py-1 text-3xs font-bold text-muted-foreground hover:text-foreground flex-1"
       >
-        <Settings className="h-4.5 w-4.5" />
+        <Icon icon="solar:settings-bold-duotone" className="h-5 w-5" />
         <span className="text-[9px] font-semibold">Settings</span>
       </button>
     </div>
