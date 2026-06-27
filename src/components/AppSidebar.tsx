@@ -420,30 +420,8 @@ const AppSidebar = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Media Control Mute buttons on Sidebar Bottom */}
+        {/* Settings button on Sidebar Bottom */}
         <div className="flex items-center gap-1 text-muted-foreground flex-shrink-0">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => {
-              setMicMuted(!micMuted);
-              toast.info(micMuted ? "Microphone active" : "Microphone muted");
-            }}
-            className="h-7 w-7 rounded-lg hover:text-foreground hover:bg-muted"
-          >
-            {micMuted ? <MicOff className="h-3.5 w-3.5 text-rose-500" /> : <Mic className="h-3.5 w-3.5" />}
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => {
-              setHeadphonesMuted(!headphonesMuted);
-              toast.info(headphonesMuted ? "Audio output active" : "Audio output deafened");
-            }}
-            className="h-7 w-7 rounded-lg hover:text-foreground hover:bg-muted"
-          >
-            {headphonesMuted ? <VolumeX className="h-3.5 w-3.5 text-rose-500 animate-pulse" /> : <Headphones className="h-3.5 w-3.5" />}
-          </Button>
           <Button 
             variant="ghost" 
             size="icon" 
@@ -494,7 +472,7 @@ const AppSidebar = () => {
 
             {/* Name Edit Card */}
             <div className="space-y-2 p-3 rounded-xl border border-border/40 bg-muted/10">
-              <Label htmlFor="display-name" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Display Name</Label>
+              <Label htmlFor="display-name" className="text-xs font-semibold text-muted-foreground block mb-1">Display Name</Label>
               <Input 
                 id="display-name" 
                 placeholder="Your Name" 
@@ -507,7 +485,7 @@ const AppSidebar = () => {
             {/* Currency & Country / Timezone Selection */}
             <div className="grid grid-cols-2 gap-3 p-3 rounded-xl border border-border/40 bg-muted/10">
               <div className="space-y-1.5">
-                <Label htmlFor="currency-select" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Preferred Currency</Label>
+                <Label htmlFor="currency-select" className="text-xs font-semibold text-muted-foreground block mb-1">Preferred Currency</Label>
                 <select
                   id="currency-select"
                   value={currency}
@@ -519,7 +497,7 @@ const AppSidebar = () => {
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="country-select" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Country (Timezone)</Label>
+                <Label htmlFor="country-select" className="text-xs font-semibold text-muted-foreground block mb-1">Country (Timezone)</Label>
                 <select
                   id="country-select"
                   value={country}
@@ -536,14 +514,14 @@ const AppSidebar = () => {
             {/* Collaboration Settings Card */}
             <div className="space-y-3.5 p-3 rounded-xl border border-border/40 bg-muted/10">
               <div>
-                <Label className="text-2xs font-extrabold text-indigo-500 uppercase tracking-wider block">Collaboration Settings</Label>
+                <Label className="text-sm font-bold text-primary block">Collaboration Settings</Label>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Share and collaborate on habits, finances, or job applications.</p>
               </div>
 
               {/* Active Collaborators */}
               {activeCollaborators.length > 0 && (
                 <div className="space-y-1.5 pt-2 border-t border-border/30">
-                  <div className="text-[9px] font-bold text-muted-foreground uppercase">Active Collaborators</div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">Active Collaborators</div>
                   <div className="space-y-1">
                     {activeCollaborators.map(collab => (
                       <div key={collab.id} className="flex items-center justify-between bg-background/50 border border-border/50 p-2 rounded-xl text-xs font-semibold text-foreground">
@@ -558,7 +536,7 @@ const AppSidebar = () => {
               {/* Received Invites */}
               {receivedInvites.length > 0 && (
                 <div className="space-y-1.5 pt-2 border-t border-border/30">
-                  <div className="text-[9px] font-bold text-amber-500 uppercase">Received Requests</div>
+                  <div className="text-xs font-semibold text-amber-500 mb-1">Received Requests</div>
                   <div className="space-y-1">
                     {receivedInvites.map(invite => (
                       <div key={invite.id} className="flex items-center justify-between bg-amber-500/5 border border-amber-500/20 p-2 rounded-xl text-xs">
@@ -587,7 +565,7 @@ const AppSidebar = () => {
 
               {/* Invite Form */}
               <div className="space-y-2 pt-2 border-t border-border/30">
-                <Label htmlFor="invite-email" className="text-[10px] font-bold text-muted-foreground/80 uppercase">Invite Partner by Email</Label>
+                <Label htmlFor="invite-email" className="text-xs font-semibold text-muted-foreground block mb-1">Invite Partner by Email</Label>
                 <div className="flex gap-2">
                   <Input
                     id="invite-email"
