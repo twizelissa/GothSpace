@@ -435,7 +435,7 @@ const Finances = () => {
                     {CATEGORIES[type].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} disabled className="opacity-60 cursor-not-allowed" />
               </div>
               <Input placeholder="Description (optional)" value={description} onChange={e => setDescription(e.target.value)} />
               <div className="flex gap-2 justify-end">
@@ -728,8 +728,8 @@ const Finances = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-record-date" className="text-xs font-bold text-muted-foreground/80 uppercase">Date</Label>
-                  <Input id="edit-record-date" type="date" value={editRecordDate} onChange={e => setEditRecordDate(e.target.value)} />
+                  <Label htmlFor="edit-record-date" className="text-xs font-bold text-muted-foreground/80 uppercase">Date (Locked)</Label>
+                  <Input id="edit-record-date" type="date" value={editRecordDate} onChange={e => setEditRecordDate(e.target.value)} disabled className="opacity-60 cursor-not-allowed" />
                 </div>
               </div>
 

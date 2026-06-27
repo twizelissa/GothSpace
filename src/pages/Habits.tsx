@@ -508,8 +508,9 @@ const Habits = () => {
         <div>
           <div className="flex items-center gap-3">
             <button 
+              disabled
               onClick={() => setSelectedDate(addMonths(selectedDate, -1))}
-              className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground transition-colors"
+              className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground/35 opacity-45 cursor-not-allowed"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -517,8 +518,9 @@ const Habits = () => {
               {format(selectedDate, 'MMMM yyyy')}
             </h1>
             <button 
+              disabled
               onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
-              className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground transition-colors"
+              className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground/35 opacity-45 cursor-not-allowed"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -693,14 +695,20 @@ const Habits = () => {
                           </td>
                           {weeks[activeWeekIndex]?.days.map(day => {
                             const logState = getLogState(h.id, day);
+                            const isTodayCell = isToday(day);
                             return (
                               <td 
                                 key={day.toISOString()} 
                                 className="py-2.5 px-0.5 text-center border-r border-border/30 last:border-r-2"
                               >
                                 <button
-                                  onClick={() => toggleLog(h.id, day)}
-                                  className={`mx-auto flex h-[22px] w-[22px] items-center justify-center rounded border transition-all hover:scale-105 active:scale-95 ${
+                                  disabled={!isTodayCell}
+                                  onClick={() => isTodayCell && toggleLog(h.id, day)}
+                                  className={`mx-auto flex h-[22px] w-[22px] items-center justify-center rounded border transition-all ${
+                                    isTodayCell 
+                                      ? 'hover:scale-105 active:scale-95 cursor-pointer' 
+                                      : 'opacity-45 cursor-not-allowed'
+                                  } ${
                                     logState === 'ticked' 
                                       ? 'border-transparent text-white shadow-sm font-bold animate-in zoom-in-50 duration-150' 
                                       : logState === 'crossed'
@@ -871,18 +879,22 @@ const Habits = () => {
                               const dStr = format(day, 'yyyy-MM-dd');
                               const mLog = mindsetLogs.find(l => l.log_date === dStr);
                               const val = mLog ? (mLog as any)[metric] : undefined;
+                              const isTodayCell = isToday(day);
                               return (
                                 <td 
                                   key={day.toISOString()} 
                                   className="p-0 border-r border-border/30 last:border-r-2 relative"
                                 >
                                   <button
-                                    onClick={() => setActiveMindsetEdit({ 
+                                    disabled={!isTodayCell}
+                                    onClick={() => isTodayCell && setActiveMindsetEdit({ 
                                       dateStr: dStr, 
                                       metric, 
                                       currentValue: val 
                                     })}
-                                    className="w-full h-[32px] text-center text-xs font-bold transition-all hover:brightness-110 flex items-center justify-center"
+                                    className={`w-full h-[32px] text-center text-xs font-bold transition-all flex items-center justify-center ${
+                                      isTodayCell ? 'hover:brightness-110 cursor-pointer' : 'opacity-45 cursor-not-allowed'
+                                    }`}
                                     style={{ 
                                       backgroundColor: getMindsetCellBg(val, metric),
                                       color: val ? '#ffffff' : 'hsl(var(--muted-foreground) / 0.5)'

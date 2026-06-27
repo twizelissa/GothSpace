@@ -256,8 +256,8 @@ const Applications = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="app-date" className="text-xs font-bold text-muted-foreground/80 uppercase">Date</Label>
-                      <Input id="app-date" type="date" value={appDate} onChange={e => setAppDate(e.target.value)} />
+                      <Label htmlFor="app-date" className="text-xs font-bold text-muted-foreground/80 uppercase">Date (Locked)</Label>
+                      <Input id="app-date" type="date" value={appDate} onChange={e => setAppDate(e.target.value)} disabled className="opacity-60 cursor-not-allowed" />
                     </div>
 
                     <div className="space-y-1.5">
@@ -537,8 +537,8 @@ const Applications = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-date" className="text-xs font-bold text-muted-foreground/80 uppercase">Date</Label>
-                  <Input id="edit-date" type="date" value={editDate} onChange={e => setEditDate(e.target.value)} />
+                  <Label htmlFor="edit-date" className="text-xs font-bold text-muted-foreground/80 uppercase">Date (Locked)</Label>
+                  <Input id="edit-date" type="date" value={editDate} onChange={e => setEditDate(e.target.value)} disabled className="opacity-60 cursor-not-allowed" />
                 </div>
 
                 <div className="space-y-1.5">
