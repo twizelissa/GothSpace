@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Wallet, Target, Shield, LogOut, Settings, 
-  Moon, Sun, Mail, MessageSquare, Briefcase 
+  Moon, Sun, Mail, MessageSquare, Briefcase, Pencil,
+  Mic, MicOff, VolumeX, Headphones
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -50,6 +51,12 @@ const AppSidebar = () => {
   // New settings states
   const [currency, setCurrency] = useState('USD');
   const [country, setCountry] = useState('Rwanda');
+
+  // Discord footer controls & status states
+  const [isSettingsFormOpen, setIsSettingsFormOpen] = useState(false);
+  const [userStatus, setUserStatus] = useState<'online' | 'invisible' | 'idle' | 'dnd'>('invisible');
+  const [micMuted, setMicMuted] = useState(false);
+  const [headphonesMuted, setHeadphonesMuted] = useState(false);
 
   // Collaboration States
   const [inviteEmail, setInviteEmail] = useState('');
@@ -114,11 +121,11 @@ const AppSidebar = () => {
         console.error('Error loading settings from Firestore:', err);
       }
     };
-    if (isOpen) {
+    if (isOpen || isSettingsFormOpen) {
       loadSettings();
       loadCollaborationInfo();
     }
-  }, [user, isOpen, profile?.collaborator_ids?.length]);
+  }, [user, isOpen, isSettingsFormOpen, profile?.collaborator_ids?.length]);
 
   const handleBrowserNotificationToggle = async (checked: boolean) => {
     setBrowserNotificationsEnabled(checked);
@@ -284,7 +291,7 @@ const AppSidebar = () => {
       }
 
       toast.success('Profile settings saved successfully!');
-      setIsOpen(false);
+      setIsSettingsFormOpen(false);
     } catch (err) {
       console.error('Error saving settings to Firestore:', err);
       toast.error('Failed to save settings. Please try again.');
@@ -329,380 +336,536 @@ const AppSidebar = () => {
         ))}
       </nav>
 
-      {/* USER PROFILE & SETTINGS WIDGET */}
-      <div className="border-t border-border p-4 flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm">
-              {displayName?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
+      {/* DISCORD STYLE USER PROFILE BAR */}
+      <div className="mt-auto border-t border-border bg-muted/10 p-2 flex items-center justify-between gap-1.5 select-none">
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <div className="flex items-center gap-2 min-w-0 flex-1 hover:bg-muted/40 p-1.5 rounded-lg cursor-pointer transition-colors">
+              <div className="relative flex-shrink-0">
+                <div className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-sm">
+                  {displayName?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
+                </div>
+                <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${
+                  userStatus === 'online' ? 'bg-emerald-500' :
+                  userStatus === 'idle' ? 'bg-amber-500' :
+                  userStatus === 'dnd' ? 'bg-rose-500' : 'bg-zinc-500'
+                }`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-foreground truncate leading-none">
+                  {displayName || user?.displayName || user?.email?.split('@')[0]}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-none">
+                  {user?.email?.split('@')[0]}
+                </p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-foreground truncate">
+          </DialogTrigger>
+
+          {/* DISCORD STYLE PROFILE DIALOG CARD */}
+          <DialogContent className="max-w-[340px] bg-[#18191c] border border-border/80 shadow-2xl rounded-2xl p-0 overflow-hidden text-white select-none">
+            {/* Banner top */}
+            <div className="h-[60px] bg-[#E3DFD9] relative w-full" />
+
+            {/* Avatar overlapping banner */}
+            <div className="relative px-4 pb-3">
+              <div className="absolute -top-[32px] left-4 h-16 w-16 rounded-full border-4 border-[#18191c] bg-primary flex items-center justify-center text-lg font-black text-primary-foreground shadow-lg">
+                {displayName?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
+                <div className={`absolute bottom-0 right-0 h-4.5 w-4.5 rounded-full border-3 border-[#18191c] ${
+                  userStatus === 'online' ? 'bg-emerald-500' :
+                  userStatus === 'idle' ? 'bg-amber-500' :
+                  userStatus === 'dnd' ? 'bg-rose-500' : 'bg-zinc-500'
+                }`} />
+              </div>
+
+              {/* Can't wait status pill */}
+              <div className="flex justify-end pt-2">
+                <div className="inline-flex items-center gap-1 bg-[#2f3136] hover:bg-[#393c43] text-zinc-300 px-2.5 py-1 rounded-full text-[10px] font-semibold cursor-pointer border border-[#202225]/40 transition-colors">
+                  <span className="text-zinc-400 font-bold">+</span>
+                  <span>Can't wait for...</span>
+                </div>
+              </div>
+            </div>
+
+            {/* User Profile Info */}
+            <div className="px-4 py-1.5 space-y-1">
+              <h2 className="text-sm font-bold text-white tracking-tight flex items-center gap-1">
                 {displayName || user?.displayName || user?.email?.split('@')[0]}
+                <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-zinc-700 text-zinc-300 uppercase tracking-wide">
+                  {country === 'Rwanda' ? 'RW' : country.substring(0,2).toUpperCase()}
+                </span>
+              </h2>
+              <p className="text-[11px] text-zinc-400 leading-none">
+                {user?.email?.split('@')[0]}
               </p>
-              <p className="text-3xs text-muted-foreground truncate">{user?.email}</p>
             </div>
-          </div>
 
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
-              >
-                <Settings className="h-4.5 w-4.5" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl rounded-3xl p-6 overflow-hidden">
-              {/* Premium Top Border Accent */}
-              <div className="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-teal-500 via-emerald-400 to-cyan-400" />
-              
-              <DialogHeader className="pb-3 border-b border-border/40">
-                <DialogTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
-                  <div className="p-1 rounded-lg bg-primary/10 text-primary shadow-inner">
-                    <Settings className="h-4.5 w-4.5 animate-spin-slow" />
-                  </div>
-                  Profile & Reminder Settings
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-1">
-                  Configure display settings, daily reminders, and light/dark theme layout mode.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 py-4 select-none max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
-                {/* Theme Mode Toggle Card */}
-                <div className="flex items-center justify-between p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-bold text-foreground">Theme Mode</Label>
-                    <p className="text-[10px] text-muted-foreground">Toggle between dark and light themes</p>
-                  </div>
+            {/* Inner Content scrollable */}
+            <div className="px-4 py-3 space-y-3 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+              {/* Amp up your profile section */}
+              <div className="border border-indigo-500/20 rounded-xl p-3.5 bg-indigo-500/5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">Amp up your profile</span>
+                  <span className="text-zinc-500 hover:text-zinc-300 cursor-pointer text-xs">✕</span>
+                </div>
+                <div className="flex gap-2">
                   <Button 
-                    type="button"
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    className="gap-2 shadow-sm rounded-xl border-border/60 hover:bg-muted font-bold text-xs"
+                    onClick={() => {
+                      setIsOpen(false);
+                      toast.success("Redirecting to Premium checkout...");
+                    }}
+                    className="flex-1 rounded-full text-[10px] font-bold h-7 uppercase bg-indigo-600 hover:bg-indigo-700 text-white"
                   >
-                    {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-500 animate-pulse" /> : <Moon className="h-4 w-4 text-indigo-400" />}
-                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    Get Premium
                   </Button>
-                </div>
-
-                {/* Name Edit Card */}
-                <div className="space-y-2 p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
-                  <Label htmlFor="display-name" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Display Name</Label>
-                  <Input 
-                    id="display-name" 
-                    placeholder="Your Name" 
-                    value={displayName} 
-                    onChange={e => setDisplayName(e.target.value)} 
-                    className="h-9 shadow-sm rounded-xl bg-background/50 border-border/50 focus:border-primary/50 text-xs"
-                  />
-                </div>
-
-                {/* Currency & Country / Timezone Selection */}
-                <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="currency-select" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Preferred Currency</Label>
-                    <select
-                      id="currency-select"
-                      value={currency}
-                      onChange={e => setCurrency(e.target.value)}
-                      className="w-full h-9 px-3 rounded-xl bg-background border border-border/50 text-xs focus:outline-none focus:border-primary"
-                    >
-                      <option value="USD">USD ($)</option>
-                      <option value="RWF">RWF (RWF)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="country-select" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Country (Timezone)</Label>
-                    <select
-                      id="country-select"
-                      value={country}
-                      onChange={e => setCountry(e.target.value)}
-                      className="w-full h-9 px-3 rounded-xl bg-background border border-border/50 text-xs focus:outline-none focus:border-primary"
-                    >
-                      {COUNTRIES.map(c => (
-                        <option key={c.name} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Collaboration Settings Card */}
-                <div className="space-y-3.5 p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
-                  <div>
-                    <Label className="text-2xs font-extrabold text-indigo-500 uppercase tracking-wider block">Collaboration Settings</Label>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Share and collaborate on habits, finances, or job applications.</p>
-                  </div>
-
-                  {/* Active Collaborators */}
-                  {activeCollaborators.length > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-border/30">
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase">Active Collaborators</div>
-                      <div className="space-y-1">
-                        {activeCollaborators.map(collab => (
-                          <div key={collab.id} className="flex items-center justify-between bg-background/50 border border-border/50 p-2 rounded-xl text-xs font-semibold text-foreground">
-                            <span>{collab.display_name || collab.reminder_email}</span>
-                            <span className="text-[9px] text-emerald-500 uppercase font-bold tracking-wider">Connected</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Received Invites */}
-                  {receivedInvites.length > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-border/30">
-                      <div className="text-[9px] font-bold text-amber-500 uppercase">Received Requests</div>
-                      <div className="space-y-1">
-                        {receivedInvites.map(invite => (
-                          <div key={invite.id} className="flex items-center justify-between bg-amber-500/5 border border-amber-500/20 p-2 rounded-xl text-xs">
-                            <span className="font-semibold text-foreground truncate max-w-[150px]">{invite.sender_name}</span>
-                            <div className="flex gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => acceptInvite(invite)}
-                                className="h-6 px-2.5 bg-emerald-500 text-white font-bold text-[10px] rounded-full uppercase transition-all active:scale-95"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => declineInvite(invite)}
-                                className="h-6 px-2.5 bg-muted text-muted-foreground font-semibold text-[10px] rounded-full uppercase transition-all active:scale-95 border border-border"
-                              >
-                                Decline
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Invite Form */}
-                  <div className="space-y-2 pt-2 border-t border-border/30">
-                    <Label htmlFor="invite-email" className="text-[10px] font-bold text-muted-foreground/80 uppercase">Invite Partner by Email</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="invite-email"
-                        type="email"
-                        placeholder="partner@email.com"
-                        value={inviteEmail}
-                        onChange={e => setInviteEmail(e.target.value)}
-                        className="h-8.5 rounded-xl bg-background/50 border-border/50 focus:border-primary/50 text-xs flex-1"
-                      />
-                      <Button
-                        type="button"
-                        onClick={sendCollaborationInvite}
-                        disabled={sendingInvite}
-                        size="sm"
-                        className="h-8.5 text-[10px] font-bold uppercase rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 hover:border-transparent active:scale-95"
-                      >
-                        {sendingInvite ? 'Sending...' : 'Invite'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Browser Push Notifications Card */}
-                <div className={`p-3.5 rounded-2xl border transition-all duration-300 ${
-                  browserNotificationsEnabled 
-                    ? 'border-purple-500/30 bg-purple-500/5 shadow-sm shadow-purple-500/5' 
-                    : 'border-border/40 bg-muted/20 hover:bg-muted/30'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-bold flex items-center gap-1.5">
-                        <Target className={`h-4 w-4 text-purple-500 ${browserNotificationsEnabled ? 'animate-pulse' : ''}`} />
-                        Browser Push Alerts
-                      </Label>
-                      <p className="text-[10px] text-muted-foreground">Receive daily habit prompts</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleBrowserNotificationToggle(!browserNotificationsEnabled)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none ${
-                        browserNotificationsEnabled ? 'bg-purple-600' : 'bg-muted border border-border'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
-                          browserNotificationsEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  {browserNotificationsEnabled && (
-                    <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3.5 border-t border-purple-500/10 items-center animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="col-span-2">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          onClick={sendTestNotification}
-                          className="w-full text-xs h-8.5 font-bold gap-1.5 shadow-sm rounded-xl border-purple-500/20 text-purple-400 hover:bg-purple-500 hover:text-white hover:border-transparent transition-all duration-200"
-                        >
-                          Send Test Alert
-                        </Button>
-                      </div>
-                      <div>
-                        <Input 
-                          value={reminderTime} 
-                          onChange={e => setReminderTime(e.target.value)} 
-                          type="time"
-                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-purple-500/10 text-center font-semibold"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Email Reminders Card */}
-                <div className={`p-3.5 rounded-2xl border transition-all duration-300 ${
-                  emailEnabled 
-                    ? 'border-indigo-500/30 bg-indigo-500/5 shadow-sm shadow-indigo-500/5' 
-                    : 'border-border/40 bg-muted/20 hover:bg-muted/30'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-bold flex items-center gap-1.5">
-                        <Mail className={`h-4 w-4 text-indigo-500 ${emailEnabled ? 'animate-bounce-slow' : ''}`} />
-                        Daily Email Updates
-                      </Label>
-                      <p className="text-[10px] text-muted-foreground">Receive updates in your inbox</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setEmailEnabled(!emailEnabled)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none ${
-                        emailEnabled ? 'bg-indigo-600' : 'bg-muted border border-border'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
-                          emailEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  {emailEnabled && (
-                    <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3.5 border-t border-indigo-500/10 items-center animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="col-span-2">
-                        <Input 
-                          placeholder="name@email.com" 
-                          value={reminderEmail} 
-                          onChange={e => setReminderEmail(e.target.value)} 
-                          type="email"
-                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-indigo-500/10"
-                        />
-                      </div>
-                      <div>
-                        <Input 
-                          value={reminderTime} 
-                          onChange={e => setReminderTime(e.target.value)} 
-                          type="time"
-                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-indigo-500/10 text-center font-semibold"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* WhatsApp Reminders Card */}
-                <div className={`p-3.5 rounded-2xl border transition-all duration-300 ${
-                  whatsappEnabled 
-                    ? 'border-emerald-500/30 bg-emerald-500/5 shadow-sm shadow-emerald-500/5' 
-                    : 'border-border/40 bg-muted/20 hover:bg-muted/30'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-bold flex items-center gap-1.5">
-                        <MessageSquare className={`h-4 w-4 text-emerald-500 ${whatsappEnabled ? 'animate-pulse' : ''}`} />
-                        WhatsApp Prompts
-                      </Label>
-                      <p className="text-[10px] text-muted-foreground">Receive logs directly on phone</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setWhatsappEnabled(!whatsappEnabled)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none ${
-                        whatsappEnabled ? 'bg-emerald-600' : 'bg-muted border border-border'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
-                          whatsappEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  {whatsappEnabled && (
-                    <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3.5 border-t border-emerald-500/10 items-center animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="col-span-2">
-                        <Input 
-                          placeholder="e.g. +1 555 123 4567" 
-                          value={reminderPhone} 
-                          onChange={e => setReminderPhone(e.target.value)} 
-                          type="tel"
-                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-emerald-500/10"
-                        />
-                      </div>
-                      <div>
-                        <Input 
-                          value={reminderTime} 
-                          onChange={e => setReminderTime(e.target.value)} 
-                          type="time"
-                          className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-emerald-500/10 text-center font-semibold"
-                        />
-                      </div>
-                    </div>
-                  )}
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setIsOpen(false);
+                      toast.info("Opening GOTH lifestyle shop...");
+                    }}
+                    className="flex-1 rounded-full text-[10px] font-bold h-7 uppercase border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                  >
+                    View Shop
+                  </Button>
                 </div>
               </div>
 
-              <DialogFooter className="border-t border-border/40 pt-4 flex flex-col sm:flex-row gap-2 justify-between items-center w-full">
-                <div className="flex w-full sm:w-auto justify-start sm:order-first order-last">
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => {
-                      setIsOpen(false);
-                      signOut();
-                    }}
-                    className="w-full sm:w-auto shadow-sm gap-1.5 h-9 font-bold text-xs border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-200 active:scale-95"
-                  >
-                    <LogOut className="h-4 w-4" /> Sign Out
-                  </Button>
-                </div>
-                <div className="flex gap-2 w-full sm:w-auto justify-end">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setIsOpen(false)} className="rounded-xl font-semibold text-xs text-muted-foreground hover:text-foreground">Cancel</Button>
-                  <Button 
-                    type="button" 
-                    size="sm" 
-                    onClick={saveSettings} 
-                    disabled={saving} 
-                    className="w-full sm:w-auto text-xs font-bold h-9 px-4 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-teal-500/20 transition-all duration-200 active:scale-95 disabled:opacity-50"
-                  >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </div>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+              {/* Menu items block */}
+              <div className="bg-[#2f3136] rounded-xl border border-zinc-800 overflow-hidden">
+                {/* Edit settings button */}
+                <button 
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsSettingsFormOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between px-3.5 py-3 hover:bg-[#393c43] text-xs font-semibold text-zinc-200 border-b border-zinc-800 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-left">
+                    <Pencil className="h-4 w-4 text-zinc-400" />
+                    Edit Profile & Reminders
+                  </span>
+                  <span className="text-zinc-500">›</span>
+                </button>
 
-        <button
-          onClick={signOut}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </button>
+                {/* Status indicator button */}
+                <div className="w-full flex items-center justify-between px-3.5 py-3 text-xs font-semibold text-zinc-200 border-b border-zinc-800">
+                  <span className="flex items-center gap-2">
+                    <div className={`h-3 w-3 rounded-full ${
+                      userStatus === 'online' ? 'bg-emerald-500' :
+                      userStatus === 'idle' ? 'bg-amber-500' :
+                      userStatus === 'dnd' ? 'bg-rose-500' : 'bg-zinc-500'
+                    }`} />
+                    Status: <span className="capitalize text-zinc-400">{userStatus}</span>
+                  </span>
+                  <select 
+                    value={userStatus}
+                    onChange={e => setUserStatus(e.target.value as any)}
+                    className="bg-[#18191c] text-zinc-300 text-[10px] border border-zinc-700 rounded px-1 py-0.5 focus:outline-none"
+                  >
+                    <option value="online">Online</option>
+                    <option value="idle">Idle</option>
+                    <option value="dnd">Do Not Disturb</option>
+                    <option value="invisible">Invisible</option>
+                  </select>
+                </div>
+
+                {/* Switch accounts / Sign Out button */}
+                <button 
+                  onClick={() => {
+                    setIsOpen(false);
+                    signOut();
+                  }}
+                  className="w-full flex items-center justify-between px-3.5 py-3 hover:bg-[#393c43] text-xs font-semibold text-zinc-200 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-left">
+                    <LogOut className="h-4 w-4 text-zinc-400" />
+                    Sign Out & Switch Account
+                  </span>
+                  <span className="text-zinc-500">›</span>
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Media Control Mute buttons on Sidebar Bottom */}
+        <div className="flex items-center gap-1 text-muted-foreground flex-shrink-0">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => {
+              setMicMuted(!micMuted);
+              toast.info(micMuted ? "Microphone active" : "Microphone muted");
+            }}
+            className="h-7 w-7 rounded-lg hover:text-foreground hover:bg-muted"
+          >
+            {micMuted ? <MicOff className="h-3.5 w-3.5 text-rose-500" /> : <Mic className="h-3.5 w-3.5" />}
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => {
+              setHeadphonesMuted(!headphonesMuted);
+              toast.info(headphonesMuted ? "Audio output active" : "Audio output deafened");
+            }}
+            className="h-7 w-7 rounded-lg hover:text-foreground hover:bg-muted"
+          >
+            {headphonesMuted ? <VolumeX className="h-3.5 w-3.5 text-rose-500 animate-pulse" /> : <Headphones className="h-3.5 w-3.5" />}
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setIsSettingsFormOpen(true)}
+            className="h-7 w-7 rounded-lg hover:text-foreground hover:bg-muted"
+          >
+            <Settings className="h-3.5 w-3.5 animate-spin-slow" />
+          </Button>
+        </div>
       </div>
+
+      {/* SETTINGS DIALOG FORM */}
+      <Dialog open={isSettingsFormOpen} onOpenChange={setIsSettingsFormOpen}>
+        <DialogContent className="max-w-md bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl rounded-3xl p-6 overflow-hidden pr-2">
+          {/* Premium Top Border Accent */}
+          <div className="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-teal-500 via-emerald-400 to-cyan-400" />
+          
+          <DialogHeader className="pb-3 border-b border-border/40">
+            <DialogTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
+              <div className="p-1 rounded-lg bg-primary/10 text-primary shadow-inner">
+                <Settings className="h-4.5 w-4.5 animate-spin-slow" />
+              </div>
+              Profile & Reminder Settings
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Configure display settings, daily reminders, and light/dark theme layout mode.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 select-none max-h-[60vh] overflow-y-auto pr-2.5 custom-scrollbar">
+            {/* Theme Mode Toggle Card */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-bold text-foreground">Theme Mode</Label>
+                <p className="text-[10px] text-muted-foreground">Toggle between dark and light themes</p>
+              </div>
+              <Button 
+                type="button"
+                variant="outline" 
+                size="sm" 
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="gap-2 shadow-sm rounded-xl border-border/60 hover:bg-muted font-bold text-xs"
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-500 animate-pulse" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              </Button>
+            </div>
+
+            {/* Name Edit Card */}
+            <div className="space-y-2 p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
+              <Label htmlFor="display-name" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Display Name</Label>
+              <Input 
+                id="display-name" 
+                placeholder="Your Name" 
+                value={displayName} 
+                onChange={e => setDisplayName(e.target.value)} 
+                className="h-9 shadow-sm rounded-xl bg-background/50 border-border/50 focus:border-primary/50 text-xs"
+              />
+            </div>
+
+            {/* Currency & Country / Timezone Selection */}
+            <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
+              <div className="space-y-1.5">
+                <Label htmlFor="currency-select" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Preferred Currency</Label>
+                <select
+                  id="currency-select"
+                  value={currency}
+                  onChange={e => setCurrency(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-background border border-border/50 text-xs focus:outline-none focus:border-primary"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="RWF">RWF (RWF)</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="country-select" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Country (Timezone)</Label>
+                <select
+                  id="country-select"
+                  value={country}
+                  onChange={e => setCountry(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-background border border-border/50 text-xs focus:outline-none focus:border-primary"
+                >
+                  {COUNTRIES.map(c => (
+                    <option key={c.name} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Collaboration Settings Card */}
+            <div className="space-y-3.5 p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
+              <div>
+                <Label className="text-2xs font-extrabold text-indigo-500 uppercase tracking-wider block">Collaboration Settings</Label>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Share and collaborate on habits, finances, or job applications.</p>
+              </div>
+
+              {/* Active Collaborators */}
+              {activeCollaborators.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t border-border/30">
+                  <div className="text-[9px] font-bold text-muted-foreground uppercase">Active Collaborators</div>
+                  <div className="space-y-1">
+                    {activeCollaborators.map(collab => (
+                      <div key={collab.id} className="flex items-center justify-between bg-background/50 border border-border/50 p-2 rounded-xl text-xs font-semibold text-foreground">
+                        <span>{collab.display_name || collab.reminder_email}</span>
+                        <span className="text-[9px] text-emerald-500 uppercase font-bold tracking-wider">Connected</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Received Invites */}
+              {receivedInvites.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t border-border/30">
+                  <div className="text-[9px] font-bold text-amber-500 uppercase">Received Requests</div>
+                  <div className="space-y-1">
+                    {receivedInvites.map(invite => (
+                      <div key={invite.id} className="flex items-center justify-between bg-amber-500/5 border border-amber-500/20 p-2 rounded-xl text-xs">
+                        <span className="font-semibold text-foreground truncate max-w-[150px]">{invite.sender_name}</span>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => acceptInvite(invite)}
+                            className="h-6 px-2.5 bg-emerald-500 text-white font-bold text-[10px] rounded-full uppercase transition-all active:scale-95"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => declineInvite(invite)}
+                            className="h-6 px-2.5 bg-muted text-muted-foreground font-semibold text-[10px] rounded-full uppercase transition-all active:scale-95 border border-border"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Invite Form */}
+              <div className="space-y-2 pt-2 border-t border-border/30">
+                <Label htmlFor="invite-email" className="text-[10px] font-bold text-muted-foreground/80 uppercase">Invite Partner by Email</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    placeholder="partner@email.com"
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    className="h-8.5 rounded-xl bg-background/50 border-border/50 focus:border-primary/50 text-xs flex-1"
+                  />
+                  <Button
+                    type="button"
+                    onClick={sendCollaborationInvite}
+                    disabled={sendingInvite}
+                    size="sm"
+                    className="h-8.5 text-[10px] font-bold uppercase rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 hover:border-transparent active:scale-95"
+                  >
+                    {sendingInvite ? 'Sending...' : 'Invite'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Browser Push Notifications Card */}
+            <div className={`p-3.5 rounded-2xl border transition-all duration-300 ${
+              browserNotificationsEnabled 
+                ? 'border-purple-500/30 bg-purple-500/5 shadow-sm shadow-purple-500/5' 
+                : 'border-border/40 bg-muted/20 hover:bg-muted/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-bold flex items-center gap-1.5">
+                    <Target className={`h-4 w-4 text-purple-500 ${browserNotificationsEnabled ? 'animate-pulse' : ''}`} />
+                    Browser Push Alerts
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">Receive daily habit prompts</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleBrowserNotificationToggle(!browserNotificationsEnabled)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none ${
+                    browserNotificationsEnabled ? 'bg-purple-600' : 'bg-muted border border-border'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                      browserNotificationsEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              {browserNotificationsEnabled && (
+                <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3.5 border-t border-purple-500/10 items-center animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="col-span-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={sendTestNotification}
+                      className="w-full text-xs h-8.5 font-bold gap-1.5 shadow-sm rounded-xl border-purple-500/20 text-purple-400 hover:bg-purple-500 hover:text-white hover:border-transparent transition-all duration-200"
+                    >
+                      Send Test Alert
+                    </Button>
+                  </div>
+                  <div>
+                    <Input 
+                      value={reminderTime} 
+                      onChange={e => setReminderTime(e.target.value)} 
+                      type="time"
+                      className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-purple-500/10 text-center font-semibold"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Email Reminders Card */}
+            <div className={`p-3.5 rounded-2xl border transition-all duration-300 ${
+              emailEnabled 
+                ? 'border-indigo-500/30 bg-indigo-500/5 shadow-sm shadow-indigo-500/5' 
+                : 'border-border/40 bg-muted/20 hover:bg-muted/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-bold flex items-center gap-1.5">
+                    <Mail className={`h-4 w-4 text-indigo-500 ${emailEnabled ? 'animate-bounce-slow' : ''}`} />
+                    Daily Email Updates
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">Receive updates in your inbox</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEmailEnabled(!emailEnabled)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none ${
+                    emailEnabled ? 'bg-indigo-600' : 'bg-muted border border-border'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                      emailEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              {emailEnabled && (
+                <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3.5 border-t border-indigo-500/10 items-center animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="col-span-2">
+                    <Input 
+                      placeholder="name@email.com" 
+                      value={reminderEmail} 
+                      onChange={e => setReminderEmail(e.target.value)} 
+                      type="email"
+                      className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-indigo-500/10"
+                    />
+                  </div>
+                  <div>
+                    <Input 
+                      value={reminderTime} 
+                      onChange={e => setReminderTime(e.target.value)} 
+                      type="time"
+                      className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-indigo-500/10 text-center font-semibold"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* WhatsApp Reminders Card */}
+            <div className={`p-3.5 rounded-2xl border transition-all duration-300 ${
+              whatsappEnabled 
+                ? 'border-emerald-500/30 bg-emerald-500/5 shadow-sm shadow-emerald-500/5' 
+                : 'border-border/40 bg-muted/20 hover:bg-muted/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-bold flex items-center gap-1.5">
+                    <MessageSquare className={`h-4 w-4 text-emerald-500 ${whatsappEnabled ? 'animate-pulse' : ''}`} />
+                    WhatsApp Prompts
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">Receive logs directly on phone</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWhatsappEnabled(!whatsappEnabled)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none ${
+                    whatsappEnabled ? 'bg-emerald-600' : 'bg-muted border border-border'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                      whatsappEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              {whatsappEnabled && (
+                <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3.5 border-t border-emerald-500/10 items-center animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="col-span-2">
+                    <Input 
+                      placeholder="e.g. +1 555 123 4567" 
+                      value={reminderPhone} 
+                      onChange={e => setReminderPhone(e.target.value)} 
+                      type="tel"
+                      className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-emerald-500/10"
+                    />
+                  </div>
+                  <div>
+                    <Input 
+                      value={reminderTime} 
+                      onChange={e => setReminderTime(e.target.value)} 
+                      type="time"
+                      className="h-8.5 text-xs shadow-sm rounded-xl bg-background/50 border-emerald-500/10 text-center font-semibold"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="border-t border-border/40 pt-4 flex flex-col sm:flex-row gap-2 justify-between items-center w-full">
+            <div className="flex w-full sm:w-auto justify-start sm:order-first order-last">
+              <Button 
+                type="button"
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setIsSettingsFormOpen(false);
+                  signOut();
+                }}
+                className="w-full sm:w-auto shadow-sm gap-1.5 h-9 font-bold text-xs border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-200 active:scale-95"
+              >
+                <LogOut className="h-4 w-4" /> Sign Out
+              </Button>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto justify-end">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setIsSettingsFormOpen(false)} className="rounded-xl font-semibold text-xs text-muted-foreground hover:text-foreground">Cancel</Button>
+              <Button 
+                type="button" 
+                size="sm" 
+                onClick={saveSettings} 
+                disabled={saving} 
+                className="w-full sm:w-auto text-xs font-bold h-9 px-4 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-teal-500/20 transition-all duration-200 active:scale-95 disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </aside>
 
     <div className="flex md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 bg-card/85 backdrop-blur-md border-t border-border/80 px-2 py-1 justify-around items-center select-none shadow-lg animate-in slide-in-from-bottom duration-300">
