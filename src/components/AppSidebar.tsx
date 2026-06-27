@@ -8,6 +8,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
+import { Icon } from '@iconify/react';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { updateProfile as firebaseUpdateProfile } from 'firebase/auth';
@@ -395,7 +396,7 @@ const AppSidebar = () => {
                   className="w-full flex items-center justify-between px-3.5 py-3 hover:bg-[#393c43] text-xs font-semibold text-zinc-200 border-b border-zinc-800 transition-colors"
                 >
                   <span className="flex items-center gap-2 text-left">
-                    <Pencil className="h-3.5 w-3.5 text-zinc-400" />
+                    <Icon icon="solar:pen-bold-duotone" className="h-4.5 w-4.5 text-zinc-400" />
                     Edit Profile & Settings
                   </span>
                   <span className="text-zinc-500 text-xs">›</span>
@@ -410,7 +411,7 @@ const AppSidebar = () => {
                   className="w-full flex items-center justify-between px-3.5 py-3 hover:bg-[#393c43] text-xs font-semibold text-zinc-200 transition-colors"
                 >
                   <span className="flex items-center gap-2 text-left">
-                    <LogOut className="h-3.5 w-3.5 text-zinc-400" />
+                    <Icon icon="solar:logout-bold-duotone" className="h-4.5 w-4.5 text-zinc-400" />
                     Sign Out & Switch Account
                   </span>
                   <span className="text-zinc-500 text-xs">›</span>
@@ -428,7 +429,7 @@ const AppSidebar = () => {
             onClick={() => setIsSettingsFormOpen(true)}
             className="h-7 w-7 rounded-lg hover:text-foreground hover:bg-muted"
           >
-            <Settings className="h-3.5 w-3.5" />
+            <Icon icon="solar:settings-bold-duotone" className="h-4.5 w-4.5" />
           </Button>
         </div>
       </div>
@@ -442,7 +443,7 @@ const AppSidebar = () => {
           <DialogHeader className="pb-3 border-b border-border/40">
             <DialogTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
               <div className="p-1 rounded-lg bg-primary/10 text-primary shadow-inner">
-                <Settings className="h-4.5 w-4.5 animate-spin-slow" />
+                <Icon icon="solar:settings-bold-duotone" className="h-5 w-5 animate-spin-slow" />
               </div>
               Profile & Settings
             </DialogTitle>
@@ -465,7 +466,7 @@ const AppSidebar = () => {
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 className="gap-2 shadow-sm rounded-xl border-border/60 hover:bg-muted font-bold text-xs"
               >
-                {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-500 animate-pulse" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+                {theme === 'dark' ? <Icon icon="solar:sun-bold-duotone" className="h-4.5 w-4.5 text-amber-500 animate-pulse" /> : <Icon icon="solar:moon-bold-duotone" className="h-4.5 w-4.5 text-indigo-400" />}
                 {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
               </Button>
             </div>
@@ -593,7 +594,7 @@ const AppSidebar = () => {
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-sm font-bold flex items-center gap-1.5">
-                    <Target className="h-4 w-4 text-primary" />
+                    <Icon icon="solar:notification-lines-by-center-bold-duotone" className="h-5 w-5 text-primary" />
                     Browser Push Alerts
                   </Label>
                   <p className="text-[10px] text-muted-foreground">Receive daily habit prompts</p>
@@ -642,7 +643,7 @@ const AppSidebar = () => {
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-sm font-bold flex items-center gap-1.5">
-                    <Mail className="h-4 w-4 text-primary" />
+                    <Icon icon="solar:letter-bold-duotone" className="h-5 w-5 text-primary" />
                     Daily Email Updates
                   </Label>
                   <p className="text-[10px] text-muted-foreground">Receive updates in your inbox</p>
@@ -689,7 +690,7 @@ const AppSidebar = () => {
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-sm font-bold flex items-center gap-1.5">
-                    <MessageSquare className="h-4 w-4 text-primary" />
+                    <Icon icon="solar:chat-round-line-bold-duotone" className="h-5 w-5 text-primary" />
                     WhatsApp Prompts
                   </Label>
                   <p className="text-[10px] text-muted-foreground">Receive logs directly on phone</p>
@@ -744,7 +745,7 @@ const AppSidebar = () => {
                 }}
                 className="w-full sm:w-auto shadow-sm gap-1.5 h-9 font-bold text-xs border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-200 active:scale-95"
               >
-                <LogOut className="h-4 w-4" /> Sign Out
+                <Icon icon="solar:logout-bold-duotone" className="h-4.5 w-4.5" /> Sign Out
               </Button>
             </div>
             <div className="flex gap-2 w-full sm:w-auto justify-end">
