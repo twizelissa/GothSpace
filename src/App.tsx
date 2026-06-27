@@ -12,6 +12,7 @@ import Finances from "./pages/Finances";
 import Habits from "./pages/Habits";
 import Admin from "./pages/Admin";
 import Applications from "./pages/Applications";
+import ShareApp from "./pages/ShareApp";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <AuthProvider>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/share/app/:id" element={<ShareApp />} />
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/dashboard" element={<Dashboard />} />

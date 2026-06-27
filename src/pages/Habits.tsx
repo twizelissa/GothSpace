@@ -69,12 +69,34 @@ const isDayBeforeHabitCreation = (day: Date, createdAt: any) => {
 };
 
 const Habits = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<HabitLog[]>([]);
   const [mindsetLogs, setMindsetLogs] = useState<MindsetLog[]>([]);
+
+  // Timezone calculations
+  const tz = profile?.timezone || 'Africa/Kigali';
+  const getLocalDateInTimezone = (timezone: string) => {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+      });
+      return new Date(formatter.format(new Date()));
+    } catch (e) {
+      return new Date();
+    }
+  };
+
+  const todayInTZ = getLocalDateInTimezone(tz);
+
+  const startOfDayTZ = (d: Date) => {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  };
   
   const [newHabit, setNewHabit] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -146,7 +168,7 @@ const Habits = () => {
     if (user) {
       fetchData();
     }
-  }, [user, selectedDate]);
+  }, [user, profile?.collaborator_ids?.length, selectedDate]);
 
   // Set initial week index to current week when habits load or selectedDate changes
   useEffect(() => {
@@ -182,8 +204,9 @@ const Habits = () => {
   };
 
   const fetchHabits = async () => {
+    const userIds = [user!.id, ...(profile?.collaborator_ids || [])];
     const habitsRef = collection(db, 'habits');
-    const q = query(habitsRef, where('user_id', '==', user!.id));
+    const q = query(habitsRef, where('user_id', 'in', userIds));
     const snap = await getDocs(q);
     const fetchedHabits: Habit[] = [];
     snap.forEach((doc) => {
@@ -193,16 +216,18 @@ const Habits = () => {
         name: data.name,
         color: data.color || '#14B8A6',
         created_at: data.created_at || null,
+        user_id: data.user_id,
       });
     });
     setHabits(fetchedHabits);
   };
 
   const fetchLogs = async () => {
+    const userIds = [user!.id, ...(profile?.collaborator_ids || [])];
     const logsRef = collection(db, 'habit_logs');
     const q = query(
       logsRef,
-      where('user_id', '==', user!.id),
+      where('user_id', 'in', userIds),
       where('log_date', '>=', startStr),
       where('log_date', '<=', endStr)
     );
@@ -220,10 +245,11 @@ const Habits = () => {
   };
 
   const fetchMindsetLogs = async () => {
+    const userIds = [user!.id, ...(profile?.collaborator_ids || [])];
     const mindsetRef = collection(db, 'mindset_logs');
     const q = query(
       mindsetRef,
-      where('user_id', '==', user!.id),
+      where('user_id', 'in', userIds),
       where('log_date', '>=', startStr),
       where('log_date', '<=', endStr)
     );
@@ -681,101 +707,114 @@ const Habits = () => {
                 </div>
 
                 {/* Table area for habits */}
-                <div className="flex-1 overflow-x-auto custom-scrollbar select-none">
+                <div className="flex-1 overflow-x-auto custom-scrollbar select-none border border-border rounded-xl bg-card shadow-sm">
                   <table className="w-full border-collapse">
                     <thead>
-                      <tr>
-                        <th className="text-left text-xs font-bold text-muted-foreground/80 pb-2 min-w-[150px] pr-4 border-r border-border/40">My Habits</th>
+                      <tr className="border-b border-border">
+                        <th className="text-left text-xs font-bold text-muted-foreground pb-2 min-w-[150px] pl-3 py-2.5 border-r border-border bg-muted/10">My Habits</th>
                         <th 
                           colSpan={weeks[activeWeekIndex]?.days.length || 1} 
-                          className={`text-center font-bold text-2xs uppercase tracking-wider py-1 border-r border-border/50 text-[10px] rounded-t-md border-t border-x ${weeks[activeWeekIndex]?.colorClass}`}
+                          className={`text-center font-bold text-2xs uppercase tracking-wider py-2.5 border-border text-[10px] ${weeks[activeWeekIndex]?.colorClass}`}
                         >
                           {weeks[activeWeekIndex]?.name}
                         </th>
                       </tr>
-                      <tr className="border-b border-border">
-                        <th className="border-r border-border/40" />
-                        {weeks[activeWeekIndex]?.days.map(day => (
-                          <th 
-                            key={day.toISOString()} 
-                            className={`text-center text-[10px] font-bold pb-2 px-1 border-r border-border/30 last:border-r-2 ${
-                              isToday(day) ? 'text-primary bg-primary/10 rounded-t-md' : 'text-muted-foreground/75'
-                            }`}
-                          >
-                            <div className="text-[8px] uppercase opacity-75 font-semibold">
-                              {format(day, 'EEE').substring(0, 2)}
-                            </div>
-                            <div className="text-xs mt-0.5">{format(day, 'd')}</div>
-                          </th>
-                        ))}
+                      <tr className="border-b border-border bg-muted/5">
+                        <th className="border-r border-border" />
+                        {weeks[activeWeekIndex]?.days.map(day => {
+                          const isTodayDay = day.getFullYear() === todayInTZ.getFullYear() &&
+                                             day.getMonth() === todayInTZ.getMonth() &&
+                                             day.getDate() === todayInTZ.getDate();
+                          return (
+                            <th 
+                              key={day.toISOString()} 
+                              className={`text-center text-[10px] font-bold py-2 px-1 border-r border-border last:border-r-0 ${
+                                isTodayDay ? 'text-primary bg-primary/10' : 'text-muted-foreground/75'
+                              }`}
+                            >
+                              <div className="text-[8px] uppercase opacity-75 font-semibold">
+                                {format(day, 'EEE').substring(0, 2)}
+                              </div>
+                              <div className="text-xs mt-0.5">{format(day, 'd')}</div>
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     
                     <tbody>
                       {/* HABITS ROWS */}
                       {habits.map(h => (
-                        <tr key={h.id} className="hover:bg-muted/30 border-b border-border/30 group">
-                          <td className="py-2.5 pr-4 border-r border-border/40 max-w-[150px] truncate">
+                        <tr key={h.id} className="hover:bg-muted/30 border-b border-border last:border-b-0 group">
+                          <td className="py-2.5 pl-3 pr-4 border-r border-border max-w-[150px] truncate bg-card">
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-1.5 min-w-0">
                                 <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: h.color }} />
                                 <span className="text-xs font-semibold text-foreground truncate">{h.name}</span>
+                                {h.user_id !== user!.id && (
+                                  <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-indigo-500/10 text-indigo-400 uppercase tracking-wider scale-90 flex-shrink-0">
+                                    Partner
+                                  </span>
+                                )}
                               </div>
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
-                                <button 
-                                  onClick={() => handleOpenEditHabit(h)} 
-                                  className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </button>
-                                <button 
-                                  onClick={() => deleteHabit(h.id)} 
-                                  className="p-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-all"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </div>
+                              {h.user_id === user!.id && (
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+                                  <button 
+                                    onClick={() => handleOpenEditHabit(h)} 
+                                    className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                  <button 
+                                    onClick={() => deleteHabit(h.id)} 
+                                    className="p-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-all"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </td>
                           {weeks[activeWeekIndex]?.days.map(day => {
                             const logState = getLogState(h.id, day);
-                            const isTodayCell = isToday(day);
+                            const isTodayDay = day.getFullYear() === todayInTZ.getFullYear() &&
+                                               day.getMonth() === todayInTZ.getMonth() &&
+                                               day.getDate() === todayInTZ.getDate();
+                            const isPastDay = startOfDayTZ(day) < startOfDayTZ(todayInTZ);
                             const isBeforeCreation = isDayBeforeHabitCreation(day, h.created_at);
-                            const isClickable = isTodayCell && !isBeforeCreation;
+                            const isClickable = isTodayDay && !isBeforeCreation;
+
+                            const isTicked = logState === 'ticked';
+                            const isCrossed = logState === 'crossed' || (isPastDay && logState === 'empty' && !isBeforeCreation);
+                            const isPendingToday = isTodayDay && logState === 'empty' && !isBeforeCreation;
+
                             return (
                               <td 
                                 key={day.toISOString()} 
-                                className="py-2.5 px-0.5 text-center border-r border-border/30 last:border-r-2"
+                                className="py-2.5 px-0.5 text-center border-r border-border last:border-r-0 bg-card"
                               >
                                 <button
                                   disabled={!isClickable}
                                   onClick={() => isClickable && toggleLog(h.id, day)}
                                   className={`mx-auto flex h-[22px] w-[22px] items-center justify-center rounded border transition-all ${
                                     isClickable 
-                                      ? 'hover:scale-105 active:scale-95 cursor-pointer' 
+                                      ? 'hover:scale-105 active:scale-95 cursor-pointer shadow-sm' 
                                       : isBeforeCreation
-                                      ? 'opacity-10 cursor-not-allowed bg-transparent border-transparent border-none'
-                                      : 'opacity-45 cursor-not-allowed'
+                                      ? 'opacity-10 cursor-not-allowed bg-transparent border-transparent border-none pointer-events-none'
+                                      : 'opacity-40 cursor-not-allowed'
                                   } ${
-                                    !isBeforeCreation && logState === 'ticked' 
-                                      ? 'border-transparent text-white shadow-sm font-bold animate-in zoom-in-50 duration-150' 
-                                      : !isBeforeCreation && logState === 'crossed'
-                                      ? 'border-transparent text-white bg-rose-500 shadow-sm font-bold animate-in zoom-in-50 duration-150'
-                                      : isBeforeCreation 
-                                      ? 'border-transparent bg-transparent text-transparent pointer-events-none'
-                                      : 'border-border/80 bg-background/50 hover:bg-muted/80 hover:border-muted-foreground/20 text-transparent'
+                                    isTicked 
+                                      ? 'bg-emerald-500 border-transparent text-white font-bold animate-in zoom-in-50 duration-150' 
+                                      : isCrossed
+                                      ? 'bg-rose-500 border-transparent text-white font-bold animate-in zoom-in-50 duration-150'
+                                      : isPendingToday
+                                      ? 'bg-amber-500 border-transparent text-white animate-pulse'
+                                      : 'border-border bg-background/50 text-transparent'
                                   }`}
-                                  style={{ 
-                                    backgroundColor: (!isBeforeCreation && logState === 'ticked') 
-                                      ? weeks[activeWeekIndex].checkColor 
-                                      : (!isBeforeCreation && logState === 'crossed') 
-                                      ? 'hsl(var(--destructive))' 
-                                      : 'transparent' 
-                                  }}
                                 >
-                                  {!isBeforeCreation && logState === 'ticked' ? (
+                                  {isTicked ? (
                                     <Check className="h-3.5 w-3.5 stroke-[3]" />
-                                  ) : !isBeforeCreation && logState === 'crossed' ? (
+                                  ) : isCrossed ? (
                                     <X className="h-3.5 w-3.5 stroke-[3]" />
                                   ) : null}
                                 </button>
@@ -929,21 +968,23 @@ const Habits = () => {
                               const dStr = format(day, 'yyyy-MM-dd');
                               const mLog = mindsetLogs.find(l => l.log_date === dStr);
                               const val = mLog ? (mLog as any)[metric] : undefined;
-                              const isTodayCell = isToday(day);
+                              const isTodayDay = day.getFullYear() === todayInTZ.getFullYear() &&
+                                                 day.getMonth() === todayInTZ.getMonth() &&
+                                                 day.getDate() === todayInTZ.getDate();
                               return (
                                 <td 
                                   key={day.toISOString()} 
-                                  className="p-0 border-r border-border/30 last:border-r-2 relative"
+                                  className="p-0 border-r border-border last:border-r-0 relative"
                                 >
                                   <button
-                                    disabled={!isTodayCell}
-                                    onClick={() => isTodayCell && setActiveMindsetEdit({ 
+                                    disabled={!isTodayDay}
+                                    onClick={() => isTodayDay && setActiveMindsetEdit({ 
                                       dateStr: dStr, 
                                       metric, 
                                       currentValue: val 
                                     })}
                                     className={`w-full h-[32px] text-center text-xs font-bold transition-all flex items-center justify-center ${
-                                      isTodayCell ? 'hover:brightness-110 cursor-pointer' : 'opacity-45 cursor-not-allowed'
+                                      isTodayDay ? 'hover:brightness-110 cursor-pointer' : 'opacity-40 cursor-not-allowed'
                                     }`}
                                     style={{ 
                                       backgroundColor: getMindsetCellBg(val, metric),

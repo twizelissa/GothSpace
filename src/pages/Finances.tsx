@@ -57,7 +57,7 @@ const getCategoryIcon = (category: string) => {
 };
 
 const Finances = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'records' | 'planner'>('records');
   const [records, setRecords] = useState<FinancialRecord[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -67,6 +67,11 @@ const Finances = () => {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+
+  const formatMoney = (val: number) => {
+    const symbol = profile?.currency === 'RWF' ? 'RWF ' : '$';
+    return `${symbol}${val.toLocaleString()}`;
+  };
 
   // Budget Planner State
   const [plannedIncome, setPlannedIncome] = useState<number>(0);
@@ -90,17 +95,18 @@ const Finances = () => {
       fetchRecords();
       fetchBudgets();
     }
-  }, [user, selectedMonth]);
+  }, [user, profile?.collaborator_ids?.length, selectedMonth]);
 
   const fetchRecords = async () => {
     const start = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
     const end = format(endOfMonth(selectedMonth), 'yyyy-MM-dd');
+    const userIds = [user!.id, ...(profile?.collaborator_ids || [])];
     
     try {
       const recordsRef = collection(db, 'financial_records');
       const q = query(
         recordsRef,
-        where('user_id', '==', user!.id),
+        where('user_id', 'in', userIds),
         where('record_date', '>=', start),
         where('record_date', '<=', end)
       );
@@ -128,13 +134,16 @@ const Finances = () => {
   const fetchBudgets = async () => {
     setIsBudgetLoading(true);
     const monthStr = format(selectedMonth, 'yyyy-MM');
+    const userIds = [user!.id, ...(profile?.collaborator_ids || [])];
     try {
-      // 1. Fetch Planned Income meta
-      const metaRef = doc(db, 'monthly_budgets_meta', `${user!.id}_${monthStr}`);
-      const metaSnap = await getDoc(metaRef);
+      // 1. Fetch Planned Income meta (sum for user and collaborators)
       let incomeVal = 0;
-      if (metaSnap.exists()) {
-        incomeVal = Number(metaSnap.data().planned_income) || 0;
+      for (const uid of userIds) {
+        const metaRef = doc(db, 'monthly_budgets_meta', `${uid}_${monthStr}`);
+        const metaSnap = await getDoc(metaRef);
+        if (metaSnap.exists()) {
+          incomeVal += Number(metaSnap.data().planned_income) || 0;
+        }
       }
       setPlannedIncome(incomeVal);
       setIncomeInput(incomeVal > 0 ? incomeVal.toString() : '');
@@ -143,7 +152,7 @@ const Finances = () => {
       const budgetRef = collection(db, 'monthly_budgets');
       const q = query(
         budgetRef,
-        where('user_id', '==', user!.id),
+        where('user_id', 'in', userIds),
         where('month', '==', monthStr)
       );
       const snap = await getDocs(q);
@@ -377,16 +386,16 @@ const Finances = () => {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="stat-card">
               <div className="flex items-center gap-2 text-muted-foreground text-sm"><TrendingUp className="h-4 w-4 text-emerald-500" />Income</div>
-              <p className="mt-1 text-2xl font-bold text-foreground">${income.toLocaleString()}</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{formatMoney(income)}</p>
             </div>
             <div className="stat-card">
               <div className="flex items-center gap-2 text-muted-foreground text-sm"><TrendingDown className="h-4 w-4 text-red-500" />Expenses</div>
-              <p className="mt-1 text-2xl font-bold text-foreground">${expenses.toLocaleString()}</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{formatMoney(expenses)}</p>
             </div>
             <div className="stat-card">
               <div className="flex items-center gap-2 text-muted-foreground text-sm">Balance</div>
               <p className={`mt-1 text-2xl font-bold ${income - expenses >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                ${(income - expenses).toLocaleString()}
+                {formatMoney(income - expenses)}
               </p>
             </div>
           </div>
@@ -401,7 +410,7 @@ const Finances = () => {
                     <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" paddingAngle={2}>
                       {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+                    <Tooltip formatter={(value: number) => formatMoney(value)} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -460,7 +469,7 @@ const Finances = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className={`font-semibold ${r.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {r.type === 'income' ? '+' : '-'}${Number(r.amount).toLocaleString()}
+                    {r.type === 'income' ? '+' : '-'}{formatMoney(Number(r.amount))}
                   </span>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
                     <button 
@@ -504,7 +513,7 @@ const Finances = () => {
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-bold text-foreground">
                   <span>Paycheck Allocated ({allocationPercent}%)</span>
-                  <span>${totalAllocated.toLocaleString()} of ${plannedIncome.toLocaleString()}</span>
+                  <span>{formatMoney(totalAllocated)} of {formatMoney(plannedIncome)}</span>
                 </div>
                 <div className="h-3 w-full rounded-full bg-muted overflow-hidden border border-border/40 relative">
                   <div 
@@ -521,7 +530,7 @@ const Finances = () => {
                 <div className="flex justify-between items-center text-xs mt-1.5">
                   {remainingToAllocate > 0 ? (
                     <span className="text-amber-500 font-semibold flex items-center gap-1">
-                      <AlertTriangle className="h-3.5 w-3.5" /> ${remainingToAllocate.toLocaleString()} left to allocate
+                      <AlertTriangle className="h-3.5 w-3.5" /> {formatMoney(remainingToAllocate)} left to allocate
                     </span>
                   ) : remainingToAllocate === 0 && plannedIncome > 0 ? (
                     <span className="text-emerald-500 font-semibold flex items-center gap-1">
@@ -529,7 +538,7 @@ const Finances = () => {
                     </span>
                   ) : remainingToAllocate < 0 ? (
                     <span className="text-rose-500 font-semibold flex items-center gap-1">
-                      <ShieldAlert className="h-3.5 w-3.5" /> Over-allocated by ${Math.abs(remainingToAllocate).toLocaleString()}!
+                      <ShieldAlert className="h-3.5 w-3.5" /> Over-allocated by {formatMoney(Math.abs(remainingToAllocate))}!
                     </span>
                   ) : (
                     <span className="text-muted-foreground">Setup planned income to start budgeting</span>
@@ -588,7 +597,7 @@ const Finances = () => {
                               <div className="min-w-0">
                                 <h4 className="text-xs font-bold text-foreground truncate">{a.category}</h4>
                                 <p className="text-3xs text-muted-foreground">
-                                  ${spent.toLocaleString()} spent of ${a.allocated.toLocaleString()} allocated
+                                  {formatMoney(spent)} spent of {formatMoney(a.allocated)} allocated
                                 </p>
                               </div>
                             </div>
@@ -616,11 +625,11 @@ const Finances = () => {
                               </span>
                               {isOverBudget ? (
                                 <span className="text-rose-500">
-                                  Over budget by ${(spent - a.allocated).toLocaleString()}!
+                                  Over budget by {formatMoney(spent - a.allocated)}!
                                 </span>
                               ) : (
                                 <span className="text-emerald-500">
-                                  ${(a.allocated - spent).toLocaleString()} left
+                                  {formatMoney(a.allocated - spent)} left
                                 </span>
                               )}
                             </div>

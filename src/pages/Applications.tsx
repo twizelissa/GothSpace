@@ -4,7 +4,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { 
   Briefcase, GraduationCap, Search, Plus, Trash2, ExternalLink, 
-  Loader2, Sparkles, Filter, Pencil 
+  Loader2, Sparkles, Filter, Pencil, Share2 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -23,10 +23,11 @@ type Application = {
   date: string;
   url?: string;
   notes?: string;
+  user_id?: string;
 };
 
 const Applications = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -60,13 +61,14 @@ const Applications = () => {
     if (user) {
       fetchApplications();
     }
-  }, [user]);
+  }, [user, profile?.collaborator_ids?.length]);
 
   const fetchApplications = async () => {
     setLoading(true);
+    const userIds = [user!.id, ...(profile?.collaborator_ids || [])];
     try {
       const appsRef = collection(db, 'applications');
-      const q = query(appsRef, where('user_id', '==', user!.id));
+      const q = query(appsRef, where('user_id', 'in', userIds));
       const snap = await getDocs(q);
       const fetched: Application[] = [];
       snap.forEach((doc) => {
@@ -80,6 +82,7 @@ const Applications = () => {
           date: data.date,
           url: data.url || '',
           notes: data.notes || '',
+          user_id: data.user_id,
         });
       });
       fetched.sort((a, b) => b.date.localeCompare(a.date));
@@ -90,6 +93,25 @@ const Applications = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleShareLink = (app: Application) => {
+    const shareUrl = `${window.location.origin}/share/app/${app.id}`;
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => {
+        toast.success('Clean shortened link copied to clipboard!');
+      })
+      .catch((err) => {
+        console.error('Failed to copy to clipboard:', err);
+        toast.error('Failed to copy link. Try again.');
+      });
+  };
+
+  const handleShareWhatsApp = (app: Application) => {
+    const shareUrl = `${window.location.origin}/share/app/${app.id}`;
+    const text = `Check out my application for ${app.title} at ${app.organization}: ${shareUrl}`;
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(waUrl, '_blank');
   };
 
   const handleAddApplication = async (e: React.FormEvent) => {
@@ -401,25 +423,34 @@ const Applications = () => {
                           {app.type === 'job' ? <Briefcase className="h-5 w-5" /> : <GraduationCap className="h-5 w-5" />}
                         </div>
                         <div className="min-w-0">
-                          <h4 className="text-sm font-bold text-foreground truncate">{app.title}</h4>
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-sm font-bold text-foreground truncate">{app.title}</h4>
+                            {app.user_id && app.user_id !== user!.id && (
+                              <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-indigo-500/10 text-indigo-400 uppercase tracking-wider scale-90 flex-shrink-0">
+                                Partner
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground truncate">{app.organization}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button
-                          onClick={() => handleOpenEdit(app)}
-                          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-all"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteApplication(app.id)}
-                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded-lg transition-all"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                      {(!app.user_id || app.user_id === user!.id) && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={() => handleOpenEdit(app)}
+                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-all"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteApplication(app.id)}
+                            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded-lg transition-all"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {app.notes && (
@@ -433,20 +464,42 @@ const Applications = () => {
                         {format(new Date(app.date), 'MMM d, yyyy')}
                       </span>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {app.url && (
                           <a
                             href={app.url}
                             target="_blank"
                             rel="noreferrer"
                             className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                            title="Open external URL"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                         )}
+
+                        {/* Copy shortened share link */}
+                        <button
+                          onClick={() => handleShareLink(app)}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-indigo-400 hover:bg-muted transition-colors"
+                          title="Copy shortened preview link"
+                        >
+                          <Share2 className="h-3.5 w-3.5" />
+                        </button>
+
+                        {/* WhatsApp share */}
+                        <button
+                          onClick={() => handleShareWhatsApp(app)}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-emerald-400 hover:bg-muted transition-colors"
+                          title="Share on WhatsApp"
+                        >
+                          <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
+                            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.419 5.422.002 12.079.002c3.225.001 6.257 1.257 8.536 3.538 2.279 2.28 3.532 5.312 3.53 8.538-.003 6.66-5.422 12.077-12.079 12.077-1.982-.001-3.929-.496-5.641-1.442L0 24zm6.59-4.846c1.6.95 3.197 1.45 4.817 1.452 5.463 0 9.907-4.444 9.91-9.913 0-2.65-1.031-5.141-2.903-7.014-1.872-1.874-4.364-2.906-7.014-2.907-5.467 0-9.91 4.444-9.913 9.914-.001 1.706.452 3.372 1.312 4.834L1.758 22.25l4.889-1.282c-.027-.008-.052-.016-.077-.024zm11.721-6.195c-.328-.164-1.944-.959-2.242-1.068-.298-.11-.515-.164-.73.164-.216.328-.838 1.068-1.026 1.287-.189.219-.377.246-.705.082-1.233-.617-2.115-1.088-2.937-2.499-.216-.372.216-.345.617-1.144.068-.137.034-.257-.017-.359-.051-.102-.515-1.242-.705-1.699-.186-.447-.375-.386-.515-.393-.133-.007-.286-.008-.438-.008-.153 0-.402.057-.612.287-.21.23-.803.785-.803 1.914 0 1.13.821 2.22 1.026 2.499.043.058 1.637 2.5 3.966 3.504 1.708.736 2.454.85 3.327.72.67-.1 2.242-.916 2.557-1.802.316-.886.316-1.646.222-1.802-.094-.157-.328-.246-.656-.41z"/>
+                          </svg>
+                        </button>
                         
                         <Select
                           value={app.status}
+                          disabled={app.user_id && app.user_id !== user!.id}
                           onValueChange={(val: Application['status']) => handleUpdateStatus(app.id, val)}
                         >
                           <SelectTrigger className={`h-7 text-[10px] font-bold border rounded-md px-2 w-28 ${statusColors[app.status]}`}>

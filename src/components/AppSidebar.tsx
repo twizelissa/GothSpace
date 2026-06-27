@@ -7,9 +7,9 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { updateProfile } from 'firebase/auth';
+import { updateProfile as firebaseUpdateProfile } from 'firebase/auth';
 import { toast } from 'sonner';
 import { 
   Dialog, DialogContent, DialogDescription, DialogHeader, 
@@ -19,9 +19,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 
+const COUNTRIES = [
+  { name: 'Rwanda', code: 'RW', timezone: 'Africa/Kigali' },
+  { name: 'United States', code: 'US', timezone: 'America/New_York' },
+  { name: 'United Kingdom', code: 'GB', timezone: 'Europe/London' },
+  { name: 'Canada', code: 'CA', timezone: 'America/Toronto' },
+  { name: 'Kenya', code: 'KE', timezone: 'Africa/Nairobi' },
+  { name: 'South Africa', code: 'ZA', timezone: 'Africa/Johannesburg' },
+  { name: 'India', code: 'IN', timezone: 'Asia/Kolkata' },
+  { name: 'Germany', code: 'DE', timezone: 'Europe/Berlin' },
+  { name: 'France', code: 'FR', timezone: 'Europe/Paris' },
+];
+
 const AppSidebar = () => {
   const { pathname } = useLocation();
-  const { isAdmin, signOut, user } = useAuth();
+  const { isAdmin, signOut, user, profile, updateProfile } = useAuth();
   const { theme, setTheme } = useTheme();
 
   // Settings State
@@ -34,6 +46,48 @@ const AppSidebar = () => {
   const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('20:00');
   const [saving, setSaving] = useState(false);
+
+  // New settings states
+  const [currency, setCurrency] = useState('USD');
+  const [country, setCountry] = useState('Rwanda');
+
+  // Collaboration States
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [receivedInvites, setReceivedInvites] = useState<any[]>([]);
+  const [activeCollaborators, setActiveCollaborators] = useState<any[]>([]);
+  const [sendingInvite, setSendingInvite] = useState(false);
+
+  const loadCollaborationInfo = async () => {
+    if (!user) return;
+    try {
+      // 1. Fetch pending invites
+      const invitesRef = collection(db, 'collaboration_invites');
+      const q = query(
+        invitesRef,
+        where('receiver_email', '==', user.email),
+        where('status', '==', 'pending')
+      );
+      const snap = await getDocs(q);
+      const invites: any[] = [];
+      snap.forEach(d => invites.push({ id: d.id, ...d.data() }));
+      setReceivedInvites(invites);
+
+      // 2. Fetch active collaborators
+      const currentProfile = profile;
+      if (currentProfile?.collaborator_ids && currentProfile.collaborator_ids.length > 0) {
+        const usersRef = collection(db, 'users');
+        const qUsers = query(usersRef, where('__name__', 'in', currentProfile.collaborator_ids));
+        const snapUsers = await getDocs(qUsers);
+        const collaborators: any[] = [];
+        snapUsers.forEach(d => collaborators.push({ id: d.id, ...d.data() }));
+        setActiveCollaborators(collaborators);
+      } else {
+        setActiveCollaborators([]);
+      }
+    } catch (err) {
+      console.error('Error loading collaboration info:', err);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -50,6 +104,8 @@ const AppSidebar = () => {
           setWhatsappEnabled(data.whatsapp_enabled || false);
           setBrowserNotificationsEnabled(data.browser_notifications_enabled || false);
           setReminderTime(data.reminder_time || '20:00');
+          setCurrency(data.currency || 'USD');
+          setCountry(data.country || 'Rwanda');
         } else {
           setDisplayName(user.displayName || '');
           setReminderEmail(user.email || '');
@@ -60,8 +116,9 @@ const AppSidebar = () => {
     };
     if (isOpen) {
       loadSettings();
+      loadCollaborationInfo();
     }
-  }, [user, isOpen]);
+  }, [user, isOpen, profile?.collaborator_ids?.length]);
 
   const handleBrowserNotificationToggle = async (checked: boolean) => {
     setBrowserNotificationsEnabled(checked);
@@ -107,10 +164,95 @@ const AppSidebar = () => {
     }
   };
 
+  const sendCollaborationInvite = async () => {
+    if (!inviteEmail.trim() || !user) return;
+    if (inviteEmail.trim().toLowerCase() === user.email?.toLowerCase()) {
+      toast.error("You cannot invite yourself!");
+      return;
+    }
+    setSendingInvite(true);
+    try {
+      // Find receiver user doc by email
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('reminder_email', '==', inviteEmail.trim()));
+      const snap = await getDocs(q);
+      
+      let receiverId = '';
+      if (!snap.empty) {
+        receiverId = snap.docs[0].id;
+      }
+
+      await addDoc(collection(db, 'collaboration_invites'), {
+        sender_email: user.email,
+        sender_id: user.id,
+        sender_name: displayName || user.displayName || user.email.split('@')[0],
+        receiver_email: inviteEmail.trim().toLowerCase(),
+        status: 'pending',
+        created_at: new Date()
+      });
+
+      toast.success("Collaboration invitation sent!");
+      setInviteEmail('');
+    } catch (err) {
+      console.error('Error sending collaboration invite:', err);
+      toast.error("Failed to send invitation");
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
+  const acceptInvite = async (invite: any) => {
+    if (!user || !profile) return;
+    try {
+      const inviteRef = doc(db, 'collaboration_invites', invite.id);
+      await updateDoc(inviteRef, { status: 'accepted' });
+
+      // Update both user docs
+      const myUserRef = doc(db, 'users', user.id);
+      const myCollabIds = profile.collaborator_ids || [];
+      if (!myCollabIds.includes(invite.sender_id)) {
+        myCollabIds.push(invite.sender_id);
+      }
+      await updateDoc(myUserRef, { collaborator_ids: myCollabIds });
+
+      const senderUserRef = doc(db, 'users', invite.sender_id);
+      const senderSnap = await getDoc(senderUserRef);
+      let senderCollabIds: string[] = [];
+      if (senderSnap.exists()) {
+        senderCollabIds = senderSnap.data().collaborator_ids || [];
+      }
+      if (!senderCollabIds.includes(user.id)) {
+        senderCollabIds.push(user.id);
+      }
+      await updateDoc(senderUserRef, { collaborator_ids: senderCollabIds });
+
+      // Update local profile state
+      await updateProfile({ collaborator_ids: myCollabIds });
+
+      toast.success("Collaboration request accepted!");
+      loadCollaborationInfo();
+    } catch (err) {
+      console.error('Error accepting invite:', err);
+      toast.error("Failed to accept invitation");
+    }
+  };
+
+  const declineInvite = async (invite: any) => {
+    try {
+      const inviteRef = doc(db, 'collaboration_invites', invite.id);
+      await updateDoc(inviteRef, { status: 'declined' });
+      toast.success("Invitation declined");
+      loadCollaborationInfo();
+    } catch (err) {
+      console.error('Error declining invite:', err);
+    }
+  };
+
   const saveSettings = async () => {
     setSaving(true);
     try {
       const userRef = doc(db, 'users', user!.id);
+      const selectedTZ = COUNTRIES.find(c => c.name === country)?.timezone || 'Africa/Kigali';
       await setDoc(userRef, {
         display_name: displayName.trim(),
         reminder_email: reminderEmail.trim(),
@@ -119,12 +261,21 @@ const AppSidebar = () => {
         whatsapp_enabled: whatsappEnabled,
         browser_notifications_enabled: browserNotificationsEnabled,
         reminder_time: reminderTime,
+        currency,
+        country,
+        timezone: selectedTZ,
       }, { merge: true });
+
+      await updateProfile({
+        currency,
+        country,
+        timezone: selectedTZ,
+      });
 
       // Try updating display name on Firebase Auth client
       try {
         if (auth.currentUser) {
-          await updateProfile(auth.currentUser, {
+          await firebaseUpdateProfile(auth.currentUser, {
             displayName: displayName.trim()
           });
         }
@@ -248,6 +399,112 @@ const AppSidebar = () => {
                     onChange={e => setDisplayName(e.target.value)} 
                     className="h-9 shadow-sm rounded-xl bg-background/50 border-border/50 focus:border-primary/50 text-xs"
                   />
+                </div>
+
+                {/* Currency & Country / Timezone Selection */}
+                <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="currency-select" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Preferred Currency</Label>
+                    <select
+                      id="currency-select"
+                      value={currency}
+                      onChange={e => setCurrency(e.target.value)}
+                      className="w-full h-9 px-3 rounded-xl bg-background border border-border/50 text-xs focus:outline-none focus:border-primary"
+                    >
+                      <option value="USD">USD ($)</option>
+                      <option value="RWF">RWF (RWF)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="country-select" className="text-2xs font-extrabold text-muted-foreground/80 uppercase tracking-wider block">Country (Timezone)</Label>
+                    <select
+                      id="country-select"
+                      value={country}
+                      onChange={e => setCountry(e.target.value)}
+                      className="w-full h-9 px-3 rounded-xl bg-background border border-border/50 text-xs focus:outline-none focus:border-primary"
+                    >
+                      {COUNTRIES.map(c => (
+                        <option key={c.name} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Collaboration Settings Card */}
+                <div className="space-y-3.5 p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-all duration-200">
+                  <div>
+                    <Label className="text-2xs font-extrabold text-indigo-500 uppercase tracking-wider block">Collaboration Settings</Label>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Share and collaborate on habits, finances, or job applications.</p>
+                  </div>
+
+                  {/* Active Collaborators */}
+                  {activeCollaborators.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-border/30">
+                      <div className="text-[9px] font-bold text-muted-foreground uppercase">Active Collaborators</div>
+                      <div className="space-y-1">
+                        {activeCollaborators.map(collab => (
+                          <div key={collab.id} className="flex items-center justify-between bg-background/50 border border-border/50 p-2 rounded-xl text-xs font-semibold text-foreground">
+                            <span>{collab.display_name || collab.reminder_email}</span>
+                            <span className="text-[9px] text-emerald-500 uppercase font-bold tracking-wider">Connected</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Received Invites */}
+                  {receivedInvites.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-border/30">
+                      <div className="text-[9px] font-bold text-amber-500 uppercase">Received Requests</div>
+                      <div className="space-y-1">
+                        {receivedInvites.map(invite => (
+                          <div key={invite.id} className="flex items-center justify-between bg-amber-500/5 border border-amber-500/20 p-2 rounded-xl text-xs">
+                            <span className="font-semibold text-foreground truncate max-w-[150px]">{invite.sender_name}</span>
+                            <div className="flex gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => acceptInvite(invite)}
+                                className="h-6 px-2.5 bg-emerald-500 text-white font-bold text-[10px] rounded-full uppercase transition-all active:scale-95"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => declineInvite(invite)}
+                                className="h-6 px-2.5 bg-muted text-muted-foreground font-semibold text-[10px] rounded-full uppercase transition-all active:scale-95 border border-border"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Invite Form */}
+                  <div className="space-y-2 pt-2 border-t border-border/30">
+                    <Label htmlFor="invite-email" className="text-[10px] font-bold text-muted-foreground/80 uppercase">Invite Partner by Email</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="invite-email"
+                        type="email"
+                        placeholder="partner@email.com"
+                        value={inviteEmail}
+                        onChange={e => setInviteEmail(e.target.value)}
+                        className="h-8.5 rounded-xl bg-background/50 border-border/50 focus:border-primary/50 text-xs flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={sendCollaborationInvite}
+                        disabled={sendingInvite}
+                        size="sm"
+                        className="h-8.5 text-[10px] font-bold uppercase rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 hover:border-transparent active:scale-95"
+                      >
+                        {sendingInvite ? 'Sending...' : 'Invite'}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Browser Push Notifications Card */}
