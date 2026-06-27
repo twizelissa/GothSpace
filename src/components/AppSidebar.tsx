@@ -325,7 +325,7 @@ const AppSidebar = () => {
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
-            <Icon icon={icon} className="h-5 w-5" />
+            <Icon icon={icon} className={cn("h-5 w-5", pathname === to ? "text-primary" : "text-muted-foreground")} />
             {label}
           </Link>
         ))}
@@ -337,9 +337,13 @@ const AppSidebar = () => {
           <DialogTrigger asChild>
             <div className="flex items-center gap-2 min-w-0 flex-1 hover:bg-muted/40 p-1.5 rounded-lg cursor-pointer transition-colors">
               <div className="relative flex-shrink-0">
-                <div className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-sm">
-                  {displayName?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
-                </div>
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="Profile" className="h-8.5 w-8.5 rounded-full object-cover shadow-sm" />
+                ) : (
+                  <div className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-sm">
+                    {displayName?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
                 <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card bg-emerald-500" />
               </div>
               <div className="flex-1 min-w-0">
@@ -359,9 +363,15 @@ const AppSidebar = () => {
             <div className="h-[60px] bg-[#E3DFD9] relative w-full" />
 
             {/* Avatar overlapping banner */}
-            <div className="relative px-4 pb-2">
-              <div className="absolute -top-[32px] left-4 h-16 w-16 rounded-full border-4 border-[#18191c] bg-primary flex items-center justify-center text-lg font-black text-primary-foreground shadow-lg">
-                {displayName?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
+            <div className="relative px-4 pb-2 h-10">
+              <div className="absolute -top-[32px] left-4 h-16 w-16 rounded-full">
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="Profile" className="h-16 w-16 rounded-full border-4 border-[#18191c] object-cover shadow-lg" />
+                ) : (
+                  <div className="h-16 w-16 rounded-full border-4 border-[#18191c] bg-primary flex items-center justify-center text-lg font-black text-primary-foreground shadow-lg">
+                    {displayName?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
                 <div className="absolute bottom-0 right-0 h-4.5 w-4.5 rounded-full border-3 border-[#18191c] bg-emerald-500" />
               </div>
             </div>
@@ -616,7 +626,7 @@ const AppSidebar = () => {
                       variant="outline" 
                       size="sm"
                       onClick={sendTestNotification}
-                      className="w-full text-xs h-8.5 font-bold gap-1.5 shadow-sm rounded-xl border-border/40 text-foreground hover:bg-muted transition-all duration-200"
+                      className="w-full text-[10px] font-bold"
                     >
                       Send Test Alert
                     </Button>
