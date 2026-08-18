@@ -119,7 +119,8 @@ const Dashboard = () => {
     setLoadingApps(true);
     try {
       const appsRef = collection(db, 'applications');
-      const q = query(appsRef, where('user_id', '==', user!.id));
+      const userIds = [user!.id, ...(profile?.collaborator_ids || [])];
+      const q = query(appsRef, where('user_id', 'in', userIds));
       const snap = await getDocs(q);
       const fetched: Application[] = [];
       snap.forEach((doc) => {
@@ -129,12 +130,12 @@ const Dashboard = () => {
           title: data.title,
           organization: data.organization,
           type: data.type,
-          status: data.status,
-          date: data.date,
+          status: data.statuses?.[user!.id] || data.status || 'Saved',
+          date: data.date || '',
         });
       });
       // Sort by date descending
-      fetched.sort((a, b) => b.date.localeCompare(a.date));
+      fetched.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       setApplications(fetched);
     } catch (err) {
       console.error('Error fetching applications for summary:', err);
