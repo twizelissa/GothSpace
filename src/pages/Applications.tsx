@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { 
   collection, query, where, getDocs, addDoc, updateDoc, 
   deleteDoc, doc, serverTimestamp 
 } from 'firebase/firestore';
+import { 
+  ref, uploadBytes, getDownloadURL, deleteObject 
+} from 'firebase/storage';
 import { 
   Briefcase, GraduationCap, Search, Plus, Trash2, ExternalLink, 
   Loader2, Sparkles, Filter, Pencil, Share2, FileText, Link as LinkIcon,
@@ -37,10 +40,13 @@ type Application = {
 };
 
 type FileItem = {
+  id?: string;
   name: string;
   extension: string;
   size: number;
   mtime: string;
+  url?: string;
+  isCloud?: boolean;
 };
 
 type ScrapedJob = {
@@ -273,6 +279,8 @@ export default function Applications() {
 
   // Files integration
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [cloudFiles, setCloudFiles] = useState<FileItem[]>([]);
+  const [uploadingCv, setUploadingCv] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [fileContent, setFileContent] = useState<string>('');
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -298,6 +306,7 @@ export default function Applications() {
   useEffect(() => {
     if (user) {
       fetchApplications();
+      fetchCloudFiles();
     }
   }, [user, profile?.collaborator_ids?.length]);
 
@@ -310,6 +319,7 @@ export default function Applications() {
       }
     } else if (activeTab === 'files') {
       loadFilesList();
+      fetchCloudFiles();
     }
   }, [activeTab, discTab]);
 
@@ -350,6 +360,31 @@ export default function Applications() {
       toast.error('Failed to load applications');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch cloud uploaded CVs from Firestore
+  const fetchCloudFiles = async () => {
+    if (!user) return;
+    try {
+      const q = query(collection(db, 'user_cvs'), where('user_id', '==', user.id));
+      const snap = await getDocs(q);
+      const fetched: FileItem[] = [];
+      snap.forEach(doc => {
+        const data = doc.data();
+        fetched.push({
+          id: doc.id,
+          name: data.name,
+          extension: data.extension || '.pdf',
+          size: data.size || 0,
+          mtime: data.mtime || new Date().toISOString(),
+          url: data.url,
+          isCloud: true
+        });
+      });
+      setCloudFiles(fetched);
+    } catch (err) {
+      console.error('Error loading cloud CVs:', err);
     }
   };
 
@@ -414,7 +449,7 @@ export default function Applications() {
       })
       .catch(() => {
         setScrapersApiError(true);
-        toast.error('Failed to connect to local helper.');
+        toast.error('Failed to connect to scraper helper.');
       })
       .finally(() => setLoadingCustom(false));
   };
@@ -511,10 +546,14 @@ export default function Applications() {
           setFiles(data);
           // Auto-select first CV/resume if possible
           const filtered = data.filter(f => f.name.toLowerCase().includes('cv') || f.name.toLowerCase().includes('resume'));
-          if (filtered.length > 0 && !selectedFile) {
-            handleSelectFile(filtered[0]);
-          } else if (data.length > 0 && !selectedFile) {
-            handleSelectFile(data[0]);
+          const cloudFiltered = cloudFiles.filter(f => f.name.toLowerCase().includes('cv') || f.name.toLowerCase().includes('resume'));
+          
+          if (!selectedFile) {
+            if (cloudFiltered.length > 0) {
+              handleSelectFile(cloudFiltered[0]);
+            } else if (filtered.length > 0) {
+              handleSelectFile(filtered[0]);
+            }
           }
         }
       })
@@ -529,6 +568,12 @@ export default function Applications() {
     setLoadingContent(true);
     setFileContent('');
 
+    // If it's a cloud file, it has a direct download URL—no need to read local disk content
+    if (file.isCloud) {
+      setLoadingContent(false);
+      return;
+    }
+
     if (['.md', '.txt', '.html'].includes(file.extension)) {
       fetch(`/api/files/content?name=${encodeURIComponent(file.name)}`)
         .then(res => {
@@ -542,6 +587,65 @@ export default function Applications() {
         .finally(() => setLoadingContent(false));
     } else {
       setLoadingContent(false);
+    }
+  };
+
+  // Firebase Cloud CV Upload Handler
+  const handleUploadCV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Only PDF documents are supported for upload');
+      return;
+    }
+
+    setUploadingCv(true);
+    try {
+      const storageRef = ref(storage, `cvs/${user!.id}/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      await addDoc(collection(db, 'user_cvs'), {
+        user_id: user!.id,
+        name: file.name,
+        url: downloadUrl,
+        extension: '.pdf',
+        size: file.size,
+        mtime: new Date().toISOString()
+      });
+
+      toast.success('CV uploaded to cloud successfully!');
+      fetchCloudFiles();
+    } catch (err) {
+      console.error('Error uploading CV:', err);
+      toast.error('Failed to upload CV. Make sure Storage Rules are enabled.');
+    } finally {
+      setUploadingCv(false);
+    }
+  };
+
+  const handleDeleteCloudCV = async (e: React.MouseEvent, file: FileItem) => {
+    e.stopPropagation();
+    if (!confirm(`Are you sure you want to delete ${file.name} from your cloud CV vault?`)) return;
+
+    try {
+      // Delete from storage
+      const storageRef = ref(storage, `cvs/${user!.id}/${file.name}`);
+      await deleteObject(storageRef).catch(() => {});
+
+      // Delete record from Firestore
+      await deleteDoc(doc(db, 'user_cvs', file.id!));
+      toast.success('CV removed from cloud vault');
+      
+      if (selectedFile?.name === file.name) {
+        setSelectedFile(null);
+        setFileContent('');
+      }
+      fetchCloudFiles();
+    } catch (err) {
+      console.error('Error deleting cloud CV:', err);
+      toast.error('Failed to delete CV from cloud');
     }
   };
 
@@ -718,8 +822,16 @@ export default function Applications() {
 
   const trackedUrls = applications.map(app => app.url).filter(Boolean);
 
+  // Merge local files and cloud files, avoiding duplicates
+  const allFilesList = [
+    ...cloudFiles,
+    ...files
+      .filter(f => !cloudFiles.some(cf => cf.name === f.name))
+      .map(f => ({ ...f, isCloud: false }))
+  ];
+
   // Filter Files List to only show CV or Resume documents as requested
-  const cvFilesOnly = files.filter(file => 
+  const cvFilesOnly = allFilesList.filter(file => 
     file.name.toLowerCase().includes('cv') || 
     file.name.toLowerCase().includes('resume')
   );
@@ -1288,171 +1400,200 @@ export default function Applications() {
           {/* TAB 3: WORKSPACE DOCUMENTS                 */}
           {/* ========================================== */}
           {activeTab === 'files' && (
-            filesApiError ? (
-              <HelperOfflineWarning featureName="Local CV Document Scanner" />
-            ) : (
-              <div className="grid gap-6 md:grid-cols-4 animate-fade-in">
-                {/* Left pane: file list */}
-                <div className="stat-card p-4 space-y-4 md:col-span-1">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <span className="text-3xs font-black uppercase tracking-widest text-muted-foreground">My CV Documents</span>
-                    <Button onClick={loadFilesList} disabled={loadingFiles} size="xs" variant="ghost" className="h-6 text-[10px] font-bold uppercase">
-                      Refresh
-                    </Button>
-                  </div>
-
-                  {loadingFiles && (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    </div>
-                  )}
-
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                    {cvFilesOnly.map(file => (
-                      <div
-                        key={file.name}
-                        onClick={() => handleSelectFile(file)}
-                        className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer hover:bg-muted/30 transition-all ${
-                          selectedFile?.name === file.name 
-                            ? 'border-primary/50 bg-primary/5' 
-                            : 'border-border/40 bg-card/40'
-                        }`}
-                      >
-                        <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
-                          <FileText className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-bold text-foreground truncate" title={file.name}>{file.name}</div>
-                          <div className="text-[10px] text-muted-foreground mt-0.5">
-                            {file.extension.toUpperCase()} • {Math.round(file.size / 1024)} KB
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {!loadingFiles && cvFilesOnly.length === 0 && (
-                      <div className="text-center py-8 text-3xs text-muted-foreground uppercase font-extrabold tracking-widest">
-                        No CV or Resume files found
-                      </div>
-                    )}
-                  </div>
+            <div className="grid gap-6 md:grid-cols-4 animate-fade-in">
+              {/* Left pane: file list */}
+              <div className="stat-card p-4 space-y-4 md:col-span-1">
+                {/* Cloud CV Upload Box */}
+                <div className="border border-dashed border-border/60 p-3.5 rounded-xl bg-muted/10 flex flex-col items-center justify-center text-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">☁️ Cloud CV Vault</span>
+                  <p className="text-[9px] text-muted-foreground max-w-[180px] leading-snug">Upload your PDF CV to access and view it directly from the deployed cloud app.</p>
+                  <label className="inline-flex h-7 items-center justify-center rounded-lg bg-primary px-3 text-[10px] font-bold uppercase text-primary-foreground cursor-pointer hover:bg-primary/95 transition-all">
+                    {uploadingCv ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : <Plus className="h-3 w-3 mr-1" />}
+                    Upload PDF CV
+                    <input type="file" accept=".pdf" onChange={handleUploadCV} className="hidden" disabled={uploadingCv} />
+                  </label>
                 </div>
 
-                {/* Right pane: file content viewer */}
-                <div className="stat-card p-5 md:col-span-3 flex flex-col min-h-[400px]">
-                  {selectedFile ? (
-                    <div className="flex-1 flex flex-col space-y-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-4">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h2 className="text-sm font-bold text-foreground">{selectedFile.name}</h2>
-                            {selectedFile.extension === '.pdf' && (
-                              <a 
-                                href={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-primary hover:text-primary/80 transition-all"
-                                title="Open PDF in new tab"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                              </a>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            Last Modified: {new Date(selectedFile.mtime).toLocaleString()}
-                          </p>
-                        </div>
+                <div className="flex items-center justify-between border-b border-border/40 pb-2 mt-4">
+                  <span className="text-3xs font-black uppercase tracking-widest text-muted-foreground">My CV Documents</span>
+                  <Button onClick={loadFilesList} disabled={loadingFiles} size="xs" variant="ghost" className="h-6 text-[10px] font-bold uppercase">
+                    Refresh
+                  </Button>
+                </div>
 
-                        {/* Dropdown link assignment */}
-                        <div className="flex justify-end w-full sm:w-auto">
-                          <select
-                            defaultValue=""
-                            onChange={e => {
-                              if (e.target.value) {
-                                handleAssignFile(e.target.value, selectedFile.name);
-                                e.target.value = "";
-                              }
-                            }}
-                            className="bg-muted border border-border text-foreground text-xs font-bold px-3 py-1.5 rounded-xl outline-none focus:border-primary cursor-pointer w-full max-w-[220px] sm:w-[200px]"
-                          >
-                            <option value="" disabled>Link to Application...</option>
-                            {applications
-                              .filter(app => !app.linked_files || !app.linked_files.includes(selectedFile.name))
-                              .map(app => (
-                                <option key={app.id} value={app.id}>{app.company} — {app.title}</option>
-                              ))
-                            }
-                          </select>
-                        </div>
+                {loadingFiles && (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                )}
+
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {cvFilesOnly.map(file => (
+                    <div
+                      key={file.name}
+                      onClick={() => handleSelectFile(file)}
+                      className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer hover:bg-muted/30 transition-all ${
+                        selectedFile?.name === file.name 
+                          ? 'border-primary/50 bg-primary/5' 
+                          : 'border-border/40 bg-card/40'
+                      }`}
+                    >
+                      <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                        <FileText className="h-4 w-4" />
                       </div>
-
-                      {/* Linked Applications Indicator */}
-                      {applications.filter(app => app.linked_files && app.linked_files.includes(selectedFile.name)).length > 0 && (
-                        <div className="flex flex-wrap items-center gap-2 bg-indigo-500/5 border border-indigo-500/10 p-2.5 rounded-xl">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Linked Apps:</span>
-                          {applications
-                            .filter(app => app.linked_files && app.linked_files.includes(selectedFile.name))
-                            .map(app => (
-                              <span 
-                                key={app.id}
-                                className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-muted px-2 py-0.5 rounded-md border border-border/40"
-                              >
-                                {app.company} ({app.title})
-                                <button 
-                                  onClick={() => handleUnassignFile(app.id, selectedFile.name)}
-                                  className="text-red-400 hover:text-red-500 font-extrabold text-xs leading-none"
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            ))
-                          }
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-foreground truncate flex items-center justify-between gap-1" title={file.name}>
+                          <span className="truncate">{file.name}</span>
+                          {file.isCloud && (
+                            <span className="text-[7px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 rounded flex-shrink-0">Cloud</span>
+                          )}
                         </div>
-                      )}
-
-                      {/* Markdown / PDF Content */}
-                      <div className="flex-1 overflow-y-auto max-h-[800px]">
-                        {loadingContent ? (
-                          <div className="flex items-center justify-center py-20">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                          </div>
-                        ) : selectedFile.extension === '.pdf' ? (
-                          /* PDF PREVIEW IFRAME VIEW WITH WIDTH AUTOFIT */
-                          <iframe
-                            key={selectedFile.name}
-                            src={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}#zoom=page-width`}
-                            className="w-full h-[750px] border border-border/40 rounded-2xl bg-card"
-                            title="PDF Preview"
-                          />
-                        ) : ['.md', '.txt', '.html'].includes(selectedFile.extension) ? (
-                          <div 
-                            className="text-xs text-muted-foreground/90 leading-relaxed font-sans border border-border/40 p-4.5 rounded-2xl bg-muted/10"
-                            dangerouslySetInnerHTML={{ __html: parseMarkdown(fileContent) }}
-                          />
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                            <AlertTriangle className="h-8 w-8 text-amber-400" />
-                            <p className="text-xs text-muted-foreground">This file type is not previewable directly.</p>
-                            <a 
-                              href={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex h-9 items-center justify-center rounded-xl bg-muted border border-border px-4 text-xs font-bold uppercase hover:bg-muted/80 transition-colors gap-1.5"
+                        <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-between">
+                          <span>{file.extension.toUpperCase()} • {Math.round(file.size / 1024)} KB</span>
+                          {file.isCloud && (
+                            <button
+                              onClick={(e) => handleDeleteCloudCV(e, file)}
+                              className="text-red-400 hover:text-red-500 p-0.5"
+                              title="Delete from cloud"
                             >
-                              Open Document <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          </div>
-                        )}
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-center">
-                      <FileText className="h-10 w-10 mb-2 opacity-40 text-indigo-400" />
-                      <p className="text-3xs uppercase font-extrabold tracking-widest">Select a document to preview and link</p>
+                  ))}
+                  {!loadingFiles && cvFilesOnly.length === 0 && (
+                    <div className="text-center py-8 text-3xs text-muted-foreground uppercase font-extrabold tracking-widest">
+                      No CV or Resume files found. Upload a PDF CV above!
                     </div>
                   )}
                 </div>
               </div>
-            )
+
+              {/* Right pane: file content viewer */}
+              <div className="stat-card p-5 md:col-span-3 flex flex-col min-h-[400px]">
+                {selectedFile ? (
+                  <div className="flex-1 flex flex-col space-y-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-sm font-bold text-foreground">{selectedFile.name}</h2>
+                          {(selectedFile.extension === '.pdf' || selectedFile.isCloud) && (
+                            <a 
+                              href={selectedFile.url || `/api/files/view?name=${encodeURIComponent(selectedFile.name)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:text-primary/80 transition-all"
+                              title="Open PDF in new tab"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Last Modified: {new Date(selectedFile.mtime).toLocaleString()}
+                        </p>
+                      </div>
+
+                      {/* Dropdown link assignment */}
+                      <div className="flex justify-end w-full sm:w-auto">
+                        <select
+                          defaultValue=""
+                          onChange={e => {
+                            if (e.target.value) {
+                              handleAssignFile(e.target.value, selectedFile.name);
+                              e.target.value = "";
+                            }
+                          }}
+                          className="bg-muted border border-border text-foreground text-xs font-bold px-3 py-1.5 rounded-xl outline-none focus:border-primary cursor-pointer w-full max-w-[220px] sm:w-[200px]"
+                        >
+                          <option value="" disabled>Link to Application...</option>
+                          {applications
+                            .filter(app => !app.linked_files || !app.linked_files.includes(selectedFile.name))
+                            .map(app => (
+                              <option key={app.id} value={app.id}>{app.company} — {app.title}</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Linked Applications Indicator */}
+                    {applications.filter(app => app.linked_files && app.linked_files.includes(selectedFile.name)).length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 bg-indigo-500/5 border border-indigo-500/10 p-2.5 rounded-xl">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Linked Apps:</span>
+                        {applications
+                          .filter(app => app.linked_files && app.linked_files.includes(selectedFile.name))
+                          .map(app => (
+                            <span 
+                              key={app.id}
+                              className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-muted px-2 py-0.5 rounded-md border border-border/40"
+                            >
+                              {app.company} ({app.title})
+                              <button 
+                                onClick={() => handleUnassignFile(app.id, selectedFile.name)}
+                                className="text-red-400 hover:text-red-500 font-extrabold text-xs leading-none"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))
+                        }
+                      </div>
+                    )}
+
+                    {/* Markdown / PDF Content */}
+                    <div className="flex-1 overflow-y-auto max-h-[800px]">
+                      {loadingContent ? (
+                        <div className="flex items-center justify-center py-20">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                      ) : selectedFile.isCloud ? (
+                        /* CLOUD PREVIEW (using Firebase storage download URL directly) */
+                        <iframe
+                          key={selectedFile.name}
+                          src={selectedFile.url}
+                          className="w-full h-[750px] border border-border/40 rounded-2xl bg-card"
+                          title="Cloud PDF Preview"
+                        />
+                      ) : selectedFile.extension === '.pdf' ? (
+                        /* PDF PREVIEW IFRAME VIEW WITH WIDTH AUTOFIT */
+                        <iframe
+                          key={selectedFile.name}
+                          src={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}#zoom=page-width`}
+                          className="w-full h-[750px] border border-border/40 rounded-2xl bg-card"
+                          title="PDF Preview"
+                        />
+                      ) : ['.md', '.txt', '.html'].includes(selectedFile.extension) ? (
+                        <div 
+                          className="text-xs text-muted-foreground/90 leading-relaxed font-sans border border-border/40 p-4.5 rounded-2xl bg-muted/10"
+                          dangerouslySetInnerHTML={{ __html: parseMarkdown(fileContent) }}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                          <AlertTriangle className="h-8 w-8 text-amber-400" />
+                          <p className="text-xs text-muted-foreground">This file type is not previewable directly.</p>
+                          <a 
+                            href={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-9 items-center justify-center rounded-xl bg-muted border border-border px-4 text-xs font-bold uppercase hover:bg-muted/80 transition-colors gap-1.5"
+                          >
+                            Open Document <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-center">
+                    <FileText className="h-10 w-10 mb-2 opacity-40 text-indigo-400" />
+                    <p className="text-3xs uppercase font-extrabold tracking-widest">Select a document to preview and link</p>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </>
       )}
