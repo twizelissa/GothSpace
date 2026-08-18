@@ -228,6 +228,19 @@ const extractSections = (text: string) => {
   return sections;
 };
 
+const HelperOfflineWarning = ({ featureName }: { featureName: string }) => (
+  <div className="flex flex-col items-center justify-center p-8 text-center space-y-3 bg-amber-500/5 border border-amber-500/20 rounded-2xl max-w-lg mx-auto my-10">
+    <AlertTriangle className="h-7 w-7 text-amber-400 animate-bounce" />
+    <h3 className="text-sm font-bold text-foreground">Local Helper Offline</h3>
+    <p className="text-xs text-muted-foreground leading-relaxed">
+      The <strong>{featureName}</strong> feature requires GothSpace's local helper server to be running on your machine.
+    </p>
+    <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+      Please run <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] text-primary font-bold">npm run dev</code> on your local computer to activate this.
+    </p>
+  </div>
+);
+
 export default function Applications() {
   const { user, profile } = useAuth();
   
@@ -235,6 +248,10 @@ export default function Applications() {
   const [activeTab, setActiveTab] = useState<'board' | 'discovery' | 'files'>('board');
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Connection errors when backend Express server is offline (e.g. in deployed cloud build)
+  const [filesApiError, setFilesApiError] = useState(false);
+  const [scrapersApiError, setScrapersApiError] = useState(false);
 
   // Discovery: Search & Scrapers
   const [discTab, setDiscTab] = useState<'custom' | 'linkedin' | 'rss' | 'domari' | 'annotation'>('custom');
@@ -380,10 +397,11 @@ export default function Applications() {
     }
     setLoadingCustom(true);
     setCustomScrapedJob(null);
+    setScrapersApiError(false);
 
     fetch(`/api/discovery/custom-scrape?url=${encodeURIComponent(customUrl.trim())}`)
       .then(res => {
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error('Offline');
         return res.json();
       })
       .then(data => {
@@ -394,7 +412,10 @@ export default function Applications() {
           toast.error('Failed to parse details.');
         }
       })
-      .catch(() => toast.error('Failed to scrape site.'))
+      .catch(() => {
+        setScrapersApiError(true);
+        toast.error('Failed to connect to local helper.');
+      })
       .finally(() => setLoadingCustom(false));
   };
 
@@ -402,29 +423,35 @@ export default function Applications() {
   const handleSearchLinkedIn = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoadingLinkedin(true);
+    setScrapersApiError(false);
     fetch(`/api/discovery/linkedin?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(discLocation)}`)
       .then(res => {
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error('Offline');
         return res.json();
       })
       .then(data => {
         if (Array.isArray(data)) setLinkedinJobs(data);
       })
-      .catch(() => toast.error('Failed to fetch LinkedIn jobs'))
+      .catch(() => {
+        setScrapersApiError(true);
+      })
       .finally(() => setLoadingLinkedin(false));
   };
 
   const loadRssFeeds = () => {
     setLoadingRss(true);
+    setScrapersApiError(false);
     fetch('/api/discovery/rss')
       .then(res => {
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error('Offline');
         return res.json();
       })
       .then(data => {
         if (Array.isArray(data)) setRssFeeds(data);
       })
-      .catch(() => toast.error('Failed to fetch RSS feeds'))
+      .catch(() => {
+        setScrapersApiError(true);
+      })
       .finally(() => setLoadingRss(false));
   };
 
@@ -473,8 +500,12 @@ export default function Applications() {
   // Files Browser
   const loadFilesList = () => {
     setLoadingFiles(true);
+    setFilesApiError(false);
     fetch('/api/files')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Offline');
+        return res.json();
+      })
       .then(data => {
         if (Array.isArray(data)) {
           setFiles(data);
@@ -487,7 +518,9 @@ export default function Applications() {
           }
         }
       })
-      .catch(() => toast.error('Failed to load workspace files'))
+      .catch(() => {
+        setFilesApiError(true);
+      })
       .finally(() => setLoadingFiles(false));
   };
 
@@ -498,7 +531,10 @@ export default function Applications() {
 
     if (['.md', '.txt', '.html'].includes(file.extension)) {
       fetch(`/api/files/content?name=${encodeURIComponent(file.name)}`)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error('Offline');
+          return res.json();
+        })
         .then(data => {
           if (data.content) setFileContent(data.content);
         })
@@ -790,65 +826,65 @@ export default function Applications() {
                               (new Date(app.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24) <= 3
                             ) && app.status !== 'Rejected' && app.status !== 'Archived';
 
-                              return (
-                               <div
-                                 key={app.id}
-                                 draggable
-                                 onDragStart={(e) => handleDragStart(e, app.id)}
-                                 onClick={() => handleOpenEditModal(app)}
-                                 className="stat-card p-3.5 space-y-3 cursor-grab active:cursor-grabbing hover:border-primary/40 hover:shadow-lg transition-all relative group bg-card/65 backdrop-blur-sm w-full min-w-0 overflow-hidden"
-                               >
-                                 <div>
-                                   <div className="flex items-start justify-between gap-1">
-                                     <h3 className="text-xs font-bold text-foreground leading-snug group-hover:text-primary transition-colors truncate">{app.title}</h3>
-                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                                       <button onClick={() => handleShareLink(app)} className="p-1 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground" title="Copy public share link">
-                                         <Share2 className="h-3 w-3" />
-                                       </button>
-                                       <button onClick={() => handleDeleteApp(app.id)} className="p-1 hover:bg-red-500/10 rounded-md text-muted-foreground hover:text-red-500" title="Delete application">
-                                         <Trash2 className="h-3 w-3" />
-                                       </button>
-                                     </div>
+                            return (
+                              <div
+                               key={app.id}
+                               draggable
+                               onDragStart={(e) => handleDragStart(e, app.id)}
+                               onClick={() => handleOpenEditModal(app)}
+                               className="stat-card p-3.5 space-y-3 cursor-grab active:cursor-grabbing hover:border-primary/40 hover:shadow-lg transition-all relative group bg-card/65 backdrop-blur-sm w-full min-w-0 overflow-hidden"
+                             >
+                               <div>
+                                 <div className="flex items-start justify-between gap-1">
+                                   <h3 className="text-xs font-bold text-foreground leading-snug group-hover:text-primary transition-colors truncate">{app.title}</h3>
+                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                     <button onClick={() => handleShareLink(app)} className="p-1 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground" title="Copy public share link">
+                                       <Share2 className="h-3 w-3" />
+                                     </button>
+                                     <button onClick={() => handleDeleteApp(app.id)} className="p-1 hover:bg-red-500/10 rounded-md text-muted-foreground hover:text-red-500" title="Delete application">
+                                       <Trash2 className="h-3 w-3" />
+                                     </button>
                                    </div>
-                                   <p className="text-3xs text-muted-foreground font-semibold mt-0.5 truncate">{app.company}</p>
                                  </div>
-
-                                 {/* Tags */}
-                                 <div className="flex flex-wrap gap-1.5">
-                                   {app.location && (
-                                     <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded-md border border-border/40 max-w-[120px] truncate">
-                                       <MapPin className="h-2.5 w-2.5 flex-shrink-0" /> {app.location}
-                                     </span>
-                                   )}
-                                   {app.deadline && (
-                                     <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md border max-w-full ${
-                                       isUrgent ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-muted/60 text-muted-foreground border-border/40'
-                                     }`}>
-                                       <Calendar className="h-2.5 w-2.5 flex-shrink-0" />
-                                       <span className="truncate">{app.deadline}</span>
-                                     </span>
-                                   )}
-                                   {app.linked_files && app.linked_files.length > 0 && (
-                                     <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-md border border-indigo-500/20">
-                                       <LinkIcon className="h-2.5 w-2.5 flex-shrink-0" /> {app.linked_files.length} file{app.linked_files.length > 1 ? 's' : ''}
-                                     </span>
-                                   )}
-                                 </div>
-
-                                 {/* Dropdown Status Shifter */}
-                                 <div className="flex flex-col gap-1.5 border-t border-border/40 pt-2.5" onClick={e => e.stopPropagation()}>
-                                   <span className="text-[9px] text-muted-foreground uppercase font-black tracking-wider">My Pipeline Stage:</span>
-                                   <select
-                                     value={app.status}
-                                     onChange={(e) => handleUpdateStatus(app.id, e.target.value as Application['status'])}
-                                     className="bg-muted border border-border/60 text-foreground font-bold px-2 py-1 rounded-md cursor-pointer outline-none focus:border-primary text-[10px] w-full"
-                                   >
-                                     {COLUMNS.map(c => (
-                                       <option key={c.key} value={c.key}>{c.label}</option>
-                                     ))}
-                                   </select>
-                                 </div>
+                                 <p className="text-3xs text-muted-foreground font-semibold mt-0.5 truncate">{app.company}</p>
                                </div>
+
+                               {/* Tags */}
+                               <div className="flex flex-wrap gap-1.5">
+                                 {app.location && (
+                                   <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded-md border border-border/40 max-w-[120px] truncate">
+                                     <MapPin className="h-2.5 w-2.5 flex-shrink-0" /> {app.location}
+                                   </span>
+                                 )}
+                                 {app.deadline && (
+                                   <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md border max-w-full ${
+                                     isUrgent ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-muted/60 text-muted-foreground border-border/40'
+                                   }`}>
+                                     <Calendar className="h-2.5 w-2.5 flex-shrink-0" />
+                                     <span className="truncate">{app.deadline}</span>
+                                   </span>
+                                 )}
+                                 {app.linked_files && app.linked_files.length > 0 && (
+                                   <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-md border border-indigo-500/20">
+                                     <LinkIcon className="h-2.5 w-2.5 flex-shrink-0" /> {app.linked_files.length} file{app.linked_files.length > 1 ? 's' : ''}
+                                   </span>
+                                 )}
+                               </div>
+
+                               {/* Dropdown Status Shifter */}
+                               <div className="flex flex-col gap-1.5 border-t border-border/40 pt-2.5" onClick={e => e.stopPropagation()}>
+                                 <span className="text-[9px] text-muted-foreground uppercase font-black tracking-wider">My Pipeline Stage:</span>
+                                 <select
+                                   value={app.status}
+                                   onChange={(e) => handleUpdateStatus(app.id, e.target.value as Application['status'])}
+                                   className="bg-muted border border-border/60 text-foreground font-bold px-2 py-1 rounded-md cursor-pointer outline-none focus:border-primary text-[10px] w-full"
+                                 >
+                                   {COLUMNS.map(c => (
+                                     <option key={c.key} value={c.key}>{c.label}</option>
+                                   ))}
+                                 </select>
+                               </div>
+                             </div>
                             );
                           })
                         )}
@@ -912,83 +948,89 @@ export default function Applications() {
               {/* Custom Scraper URL card */}
               {discTab === 'custom' && (
                 <div className="space-y-6 max-w-3xl mx-auto">
-                  <div className="stat-card p-6 space-y-4">
-                    <div>
-                      <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5"><Sparkle className="h-4 w-4 text-primary animate-pulse" /> AI Job & Opportunity Matcher</h2>
-                      <p className="text-3xs text-muted-foreground uppercase font-extrabold tracking-widest mt-0.5">Scrape any job listing URL and evaluate it against your CV</p>
-                    </div>
-
-                    <form onSubmit={handleCustomScrape} className="flex gap-2.5 items-center">
-                      <div className="relative flex-1">
-                        <Link2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          value={customUrl}
-                          onChange={e => setCustomUrl(e.target.value)}
-                          placeholder="Paste job listing URL here (e.g. LinkedIn, Job Portal, Google Jobs...)"
-                          className="pl-9 h-9 text-xs bg-muted/40 border-border/60 rounded-xl"
-                          required
-                        />
-                      </div>
-                      <Button type="submit" disabled={loadingCustom} className="h-9 font-bold uppercase tracking-wider text-2xs rounded-xl shadow-lg">
-                        {loadingCustom ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Scrape & Match'}
-                      </Button>
-                    </form>
-                  </div>
-
-                  {/* Scraped Job Details & AI match */}
-                  {loadingCustom ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-                      <p className="text-xs uppercase font-extrabold tracking-wider">Parsing HTML & Running AI matching...</p>
-                    </div>
-                  ) : customScrapedJob ? (
-                    <div 
-                      onClick={() => handleOpenDetails(customScrapedJob)}
-                      className="stat-card p-6 space-y-5 animate-fade-in cursor-pointer hover:border-primary/30 transition-all bg-card/65"
-                    >
-                      {/* Top Job Banner */}
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between border-b border-border/40 pb-4">
-                        <div className="space-y-1">
-                          <h3 className="text-base font-black text-foreground tracking-tight leading-snug">{customScrapedJob.title}</h3>
-                          <p className="text-xs font-bold text-primary">{customScrapedJob.company}</p>
-                          <div className="flex flex-wrap gap-2 text-3xs text-muted-foreground font-semibold mt-1">
-                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {customScrapedJob.location}</span>
-                            <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> {customScrapedJob.compensation}</span>
-                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Deadline: {customScrapedJob.deadline}</span>
-                          </div>
-                        </div>
-
-                        {/* AI Match Gauge */}
-                        <div className="flex items-center gap-3 bg-muted/40 border border-border/50 p-3 rounded-2xl">
-                          <div className="text-center">
-                            <div className={`text-lg font-black ${
-                              customScrapedJob.matchScore && customScrapedJob.matchScore >= 75 ? 'text-emerald-400' :
-                              customScrapedJob.matchScore && customScrapedJob.matchScore >= 50 ? 'text-amber-400' : 'text-red-400'
-                            }`}>
-                              {customScrapedJob.matchScore}%
-                            </div>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground leading-none">Match Score</span>
-                          </div>
-                          <div className="h-8 w-px bg-border/40" />
-                          <div className="text-left">
-                            <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20">
-                              {customScrapedJob.aiPowered ? 'AI Verified' : 'Local Scanner'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Summary */}
-                      <div className="space-y-2">
-                        <p className="text-3xs text-muted-foreground uppercase font-extrabold tracking-widest">Job Analysis</p>
-                        <p className="text-xs text-muted-foreground/90 line-clamp-3 leading-relaxed font-sans">{customScrapedJob.matchReasoning}</p>
-                        <span className="text-[10px] text-primary hover:underline font-bold block mt-1">Click to view complete details, qualifications, and benefits &rarr;</span>
-                      </div>
-                    </div>
+                  {scrapersApiError ? (
+                    <HelperOfflineWarning featureName="AI Custom Link Matcher" />
                   ) : (
-                    <div className="text-center py-20 text-xs text-muted-foreground border border-dashed border-border rounded-2xl">
-                      Paste a URL link of any job listing and click "Scrape & Match" to evaluate.
-                    </div>
+                    <>
+                      <div className="stat-card p-6 space-y-4">
+                        <div>
+                          <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5"><Sparkle className="h-4 w-4 text-primary animate-pulse" /> AI Job & Opportunity Matcher</h2>
+                          <p className="text-3xs text-muted-foreground uppercase font-extrabold tracking-widest mt-0.5">Scrape any job listing URL and evaluate it against your CV</p>
+                        </div>
+
+                        <form onSubmit={handleCustomScrape} className="flex gap-2.5 items-center">
+                          <div className="relative flex-1">
+                            <Link2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              value={customUrl}
+                              onChange={e => setCustomUrl(e.target.value)}
+                              placeholder="Paste job listing URL here (e.g. LinkedIn, Job Portal, Google Jobs...)"
+                              className="pl-9 h-9 text-xs bg-muted/40 border-border/60 rounded-xl"
+                              required
+                            />
+                          </div>
+                          <Button type="submit" disabled={loadingCustom} className="h-9 font-bold uppercase tracking-wider text-2xs rounded-xl shadow-lg">
+                            {loadingCustom ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Scrape & Match'}
+                          </Button>
+                        </form>
+                      </div>
+
+                      {/* Scraped Job Details & AI match */}
+                      {loadingCustom ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                          <p className="text-xs uppercase font-extrabold tracking-wider">Parsing HTML & Running AI matching...</p>
+                        </div>
+                      ) : customScrapedJob ? (
+                        <div 
+                          onClick={() => handleOpenDetails(customScrapedJob)}
+                          className="stat-card p-6 space-y-5 animate-fade-in cursor-pointer hover:border-primary/30 transition-all bg-card/65"
+                        >
+                          {/* Top Job Banner */}
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between border-b border-border/40 pb-4">
+                            <div className="space-y-1">
+                              <h3 className="text-base font-black text-foreground tracking-tight leading-snug">{customScrapedJob.title}</h3>
+                              <p className="text-xs font-bold text-primary">{customScrapedJob.company}</p>
+                              <div className="flex flex-wrap gap-2 text-3xs text-muted-foreground font-semibold mt-1">
+                                <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {customScrapedJob.location}</span>
+                                <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> {customScrapedJob.compensation}</span>
+                                <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Deadline: {customScrapedJob.deadline}</span>
+                              </div>
+                            </div>
+
+                            {/* AI Match Gauge */}
+                            <div className="flex items-center gap-3 bg-muted/40 border border-border/50 p-3 rounded-2xl">
+                              <div className="text-center">
+                                <div className={`text-lg font-black ${
+                                  customScrapedJob.matchScore && customScrapedJob.matchScore >= 75 ? 'text-emerald-400' :
+                                  customScrapedJob.matchScore && customScrapedJob.matchScore >= 50 ? 'text-amber-400' : 'text-red-400'
+                                }`}>
+                                  {customScrapedJob.matchScore}%
+                                </div>
+                                <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground leading-none">Match Score</span>
+                              </div>
+                              <div className="h-8 w-px bg-border/40" />
+                              <div className="text-left">
+                                <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20">
+                                  {customScrapedJob.aiPowered ? 'AI Verified' : 'Local Scanner'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Summary */}
+                          <div className="space-y-2">
+                            <p className="text-3xs text-muted-foreground uppercase font-extrabold tracking-widest">Job Analysis</p>
+                            <p className="text-xs text-muted-foreground/90 line-clamp-3 leading-relaxed font-sans">{customScrapedJob.matchReasoning}</p>
+                            <span className="text-[10px] text-primary hover:underline font-bold block mt-1">Click to view complete details, qualifications, and benefits &rarr;</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-20 text-xs text-muted-foreground border border-dashed border-border rounded-2xl">
+                          Paste a URL link of any job listing and click "Scrape & Match" to evaluate.
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -1095,73 +1137,79 @@ export default function Applications() {
               {/* LinkedIn Guest Feed search form */}
               {discTab === 'linkedin' && (
                 <div className="space-y-4">
-                  <form onSubmit={handleSearchLinkedIn} className="stat-card grid gap-4 sm:grid-cols-3 items-end">
-                    <div className="space-y-1.5">
-                      <Label className="text-2xs font-extrabold uppercase tracking-widest text-muted-foreground">Keywords</Label>
-                      <Input 
-                        value={keywords} 
-                        onChange={e => setKeywords(e.target.value)} 
-                        placeholder="Job title, keywords..." 
-                        className="h-9 text-xs bg-muted/30 border-border/40 rounded-xl"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-2xs font-extrabold uppercase tracking-widest text-muted-foreground">Location</Label>
-                      <Input 
-                        value={discLocation} 
-                        onChange={e => setDiscLocation(e.target.value)} 
-                        placeholder="City, country..." 
-                        className="h-9 text-xs bg-muted/30 border-border/40 rounded-xl"
-                      />
-                    </div>
-                    <Button type="submit" disabled={loadingLinkedin} className="h-9 font-bold uppercase tracking-wider text-2xs rounded-xl">
-                      {loadingLinkedin ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Search Jobs'}
-                    </Button>
-                  </form>
-
-                  {loadingLinkedin ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
-                      <p className="text-3xs uppercase font-extrabold tracking-widest">Searching LinkedIn...</p>
-                    </div>
+                  {scrapersApiError ? (
+                    <HelperOfflineWarning featureName="LinkedIn Jobs Scraper" />
                   ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {linkedinJobs.map(job => (
-                        <div 
-                          key={job.jobId || job.link} 
-                          onClick={() => handleOpenDetails(job)}
-                          className="stat-card flex flex-col justify-between p-4 space-y-4 hover:border-primary/20 cursor-pointer bg-card/65 transition-colors"
-                        >
-                          <div className="space-y-3">
-                            <div className="flex gap-3">
-                              {job.logo ? (
-                                  <img src={job.logo} alt={job.company} className="h-10 w-10 rounded-xl border border-border/40 bg-white p-0.5 object-contain" />
-                                ) : (
-                                  <div className="h-10 w-10 rounded-xl border border-border/40 bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-sm">
-                                    {job.company[0]?.toUpperCase() || 'J'}
+                    <>
+                      <form onSubmit={handleSearchLinkedIn} className="stat-card grid gap-4 sm:grid-cols-3 items-end">
+                        <div className="space-y-1.5">
+                          <Label className="text-2xs font-extrabold uppercase tracking-widest text-muted-foreground">Keywords</Label>
+                          <Input 
+                            value={keywords} 
+                            onChange={e => setKeywords(e.target.value)} 
+                            placeholder="Job title, keywords..." 
+                            className="h-9 text-xs bg-muted/30 border-border/40 rounded-xl"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-2xs font-extrabold uppercase tracking-widest text-muted-foreground">Location</Label>
+                          <Input 
+                            value={discLocation} 
+                            onChange={e => setDiscLocation(e.target.value)} 
+                            placeholder="City, country..." 
+                            className="h-9 text-xs bg-muted/30 border-border/40 rounded-xl"
+                          />
+                        </div>
+                        <Button type="submit" disabled={loadingLinkedin} className="h-9 font-bold uppercase tracking-wider text-2xs rounded-xl">
+                          {loadingLinkedin ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Search Jobs'}
+                        </Button>
+                      </form>
+
+                      {loadingLinkedin ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
+                          <p className="text-3xs uppercase font-extrabold tracking-widest">Searching LinkedIn...</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          {linkedinJobs.map(job => (
+                            <div 
+                              key={job.jobId || job.link} 
+                              onClick={() => handleOpenDetails(job)}
+                              className="stat-card flex flex-col justify-between p-4 space-y-4 hover:border-primary/20 cursor-pointer bg-card/65 transition-colors"
+                            >
+                              <div className="space-y-3">
+                                <div className="flex gap-3">
+                                  {job.logo ? (
+                                      <img src={job.logo} alt={job.company} className="h-10 w-10 rounded-xl border border-border/40 bg-white p-0.5 object-contain" />
+                                    ) : (
+                                      <div className="h-10 w-10 rounded-xl border border-border/40 bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-sm">
+                                        {job.company[0]?.toUpperCase() || 'J'}
+                                      </div>
+                                    )}
+                                  <div className="min-w-0">
+                                    <h3 className="text-xs font-bold text-foreground truncate">{job.title}</h3>
+                                    <p className="text-3xs text-muted-foreground font-semibold mt-0.5 truncate">{job.company}</p>
+                                    <p className="text-3xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin className="h-2.5 w-2.5" /> {job.location}</p>
                                   </div>
-                                )}
-                              <div className="min-w-0">
-                                <h3 className="text-xs font-bold text-foreground truncate">{job.title}</h3>
-                                <p className="text-3xs text-muted-foreground font-semibold mt-0.5 truncate">{job.company}</p>
-                                <p className="text-3xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin className="h-2.5 w-2.5" /> {job.location}</p>
+                                </div>
+                                <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md">LinkedIn Guest</span>
+                              </div>
+
+                              <div className="flex items-center justify-between border-t border-border/30 pt-3">
+                                <span className="text-[10px] text-muted-foreground">{job.postDate}</span>
+                                <span className="text-3xs text-primary font-bold hover:underline">View details &rarr;</span>
                               </div>
                             </div>
-                            <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md">LinkedIn Guest</span>
-                          </div>
-
-                          <div className="flex items-center justify-between border-t border-border/30 pt-3">
-                            <span className="text-[10px] text-muted-foreground">{job.postDate}</span>
-                            <span className="text-3xs text-primary font-bold hover:underline">View details &rarr;</span>
-                          </div>
-                        </div>
-                      ))}
-                      {!loadingLinkedin && linkedinJobs.length === 0 && (
-                        <div className="col-span-full text-center py-20 text-xs text-muted-foreground border border-dashed border-border rounded-2xl">
-                          Enter search terms and press Search to discover jobs.
+                          ))}
+                          {!loadingLinkedin && linkedinJobs.length === 0 && (
+                            <div className="col-span-full text-center py-20 text-xs text-muted-foreground border border-dashed border-border rounded-2xl">
+                              Enter search terms and press Search to discover jobs.
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               )}
@@ -1169,61 +1217,67 @@ export default function Applications() {
               {/* RSS Tab Content */}
               {discTab === 'rss' && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <span className="text-3xs font-extrabold tracking-widest text-muted-foreground uppercase">
-                      Feeds from opportunitiesforeveryone.net & brightscholarship.com
-                    </span>
-                    <Button onClick={loadRssFeeds} disabled={loadingRss} size="sm" variant="outline" className="gap-1.5 h-8 text-3xs font-extrabold uppercase">
-                      <RefreshCw className={`h-3 w-3 ${loadingRss ? 'animate-spin' : ''}`} /> Refresh Feeds
-                    </Button>
-                  </div>
-
-                  {loadingRss ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
-                      <p className="text-3xs uppercase font-extrabold tracking-widest">Parsing WordPress RSS Portals...</p>
-                    </div>
+                  {scrapersApiError ? (
+                    <HelperOfflineWarning featureName="WordPress Feeds Scraper" />
                   ) : (
-                    <div className="space-y-8">
-                      {rssFeeds.map(feed => (
-                        <div key={feed.source} className="space-y-4">
-                          <h2 className="text-sm font-black text-foreground border-b border-border/40 pb-1.5 uppercase tracking-wide flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {feed.source}
-                          </h2>
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-3xs font-extrabold tracking-widest text-muted-foreground uppercase">
+                          Feeds from opportunitiesforeveryone.net & brightscholarship.com
+                        </span>
+                        <Button onClick={loadRssFeeds} disabled={loadingRss} size="sm" variant="outline" className="gap-1.5 h-8 text-3xs font-extrabold uppercase">
+                          <RefreshCw className={`h-3 w-3 ${loadingRss ? 'animate-spin' : ''}`} /> Refresh Feeds
+                        </Button>
+                      </div>
 
-                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {feed.items.map((item, idx) => (
-                              <div 
-                                key={item.link + idx} 
-                                onClick={() => handleOpenDetails(item)}
-                                className="stat-card flex flex-col justify-between p-4 space-y-4 hover:border-primary/20 cursor-pointer bg-card/65 transition-colors"
-                              >
-                                <div className="space-y-3">
-                                  <div>
-                                    <h3 className="text-xs font-bold text-foreground leading-snug line-clamp-2">{item.title}</h3>
-                                    <p className="text-3xs text-muted-foreground flex items-center gap-1.5 mt-1">
-                                      <Calendar className="h-2.5 w-2.5 text-muted-foreground" /> {item.deadline ? `Deadline: ${item.deadline}` : 'Check Listing'}
-                                    </p>
-                                  </div>
-                                  <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md">Portal RSS</span>
-                                  <div 
-                                    className="text-3xs text-muted-foreground line-clamp-3 leading-relaxed" 
-                                    dangerouslySetInnerHTML={{ __html: item.description || '' }}
-                                  />
-                                </div>
-
-                                <div className="flex items-center justify-between border-t border-border/30 pt-3">
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {item.pubDate ? format(new Date(item.pubDate), 'MMM d, yyyy') : ''}
-                                  </span>
-                                  <span className="text-3xs text-primary font-bold hover:underline">View details &rarr;</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                      {loadingRss ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
+                          <p className="text-3xs uppercase font-extrabold tracking-widest">Parsing WordPress RSS Portals...</p>
                         </div>
-                      ))}
-                    </div>
+                      ) : (
+                        <div className="space-y-8">
+                          {rssFeeds.map(feed => (
+                            <div key={feed.source} className="space-y-4">
+                              <h2 className="text-sm font-black text-foreground border-b border-border/40 pb-1.5 uppercase tracking-wide flex items-center gap-2">
+                                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {feed.source}
+                              </h2>
+
+                              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {feed.items.map((item, idx) => (
+                                  <div 
+                                    key={item.link + idx} 
+                                    onClick={() => handleOpenDetails(item)}
+                                    className="stat-card flex flex-col justify-between p-4 space-y-4 hover:border-primary/20 cursor-pointer bg-card/65 transition-colors"
+                                  >
+                                    <div className="space-y-3">
+                                      <div>
+                                        <h3 className="text-xs font-bold text-foreground leading-snug line-clamp-2">{item.title}</h3>
+                                        <p className="text-3xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                                          <Calendar className="h-2.5 w-2.5 text-muted-foreground" /> {item.deadline ? `Deadline: ${item.deadline}` : 'Check Listing'}
+                                        </p>
+                                      </div>
+                                      <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md">Portal RSS</span>
+                                      <div 
+                                        className="text-3xs text-muted-foreground line-clamp-3 leading-relaxed" 
+                                        dangerouslySetInnerHTML={{ __html: item.description || '' }}
+                                      />
+                                    </div>
+
+                                    <div className="flex items-center justify-between border-t border-border/30 pt-3">
+                                      <span className="text-[10px] text-muted-foreground">
+                                        {item.pubDate ? format(new Date(item.pubDate), 'MMM d, yyyy') : ''}
+                                      </span>
+                                      <span className="text-3xs text-primary font-bold hover:underline">View details &rarr;</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -1234,167 +1288,171 @@ export default function Applications() {
           {/* TAB 3: WORKSPACE DOCUMENTS                 */}
           {/* ========================================== */}
           {activeTab === 'files' && (
-            <div className="grid gap-6 md:grid-cols-4">
-              {/* Left pane: file list */}
-              <div className="stat-card p-4 space-y-4 md:col-span-1">
-                <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                  <span className="text-3xs font-black uppercase tracking-widest text-muted-foreground">My CV Documents</span>
-                  <Button onClick={loadFilesList} disabled={loadingFiles} size="xs" variant="ghost" className="h-6 text-[10px] font-bold uppercase">
-                    Refresh
-                  </Button>
-                </div>
-
-                {loadingFiles && (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            filesApiError ? (
+              <HelperOfflineWarning featureName="Local CV Document Scanner" />
+            ) : (
+              <div className="grid gap-6 md:grid-cols-4 animate-fade-in">
+                {/* Left pane: file list */}
+                <div className="stat-card p-4 space-y-4 md:col-span-1">
+                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                    <span className="text-3xs font-black uppercase tracking-widest text-muted-foreground">My CV Documents</span>
+                    <Button onClick={loadFilesList} disabled={loadingFiles} size="xs" variant="ghost" className="h-6 text-[10px] font-bold uppercase">
+                      Refresh
+                    </Button>
                   </div>
-                )}
 
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {cvFilesOnly.map(file => (
-                    <div
-                      key={file.name}
-                      onClick={() => handleSelectFile(file)}
-                      className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer hover:bg-muted/30 transition-all ${
-                        selectedFile?.name === file.name 
-                          ? 'border-primary/50 bg-primary/5' 
-                          : 'border-border/40 bg-card/40'
-                      }`}
-                    >
-                      <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
-                        <FileText className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-foreground truncate" title={file.name}>{file.name}</div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">
-                          {file.extension.toUpperCase()} • {Math.round(file.size / 1024)} KB
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {!loadingFiles && cvFilesOnly.length === 0 && (
-                    <div className="text-center py-8 text-3xs text-muted-foreground uppercase font-extrabold tracking-widest">
-                      No CV or Resume files found
+                  {loadingFiles && (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </div>
                   )}
-                </div>
-              </div>
 
-              {/* Right pane: file content viewer */}
-              <div className="stat-card p-5 md:col-span-3 flex flex-col min-h-[400px]">
-                {selectedFile ? (
-                  <div className="flex-1 flex flex-col space-y-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-sm font-bold text-foreground">{selectedFile.name}</h2>
-                          {selectedFile.extension === '.pdf' && (
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    {cvFilesOnly.map(file => (
+                      <div
+                        key={file.name}
+                        onClick={() => handleSelectFile(file)}
+                        className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer hover:bg-muted/30 transition-all ${
+                          selectedFile?.name === file.name 
+                            ? 'border-primary/50 bg-primary/5' 
+                            : 'border-border/40 bg-card/40'
+                        }`}
+                      >
+                        <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                          <FileText className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-foreground truncate" title={file.name}>{file.name}</div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            {file.extension.toUpperCase()} • {Math.round(file.size / 1024)} KB
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {!loadingFiles && cvFilesOnly.length === 0 && (
+                      <div className="text-center py-8 text-3xs text-muted-foreground uppercase font-extrabold tracking-widest">
+                        No CV or Resume files found
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right pane: file content viewer */}
+                <div className="stat-card p-5 md:col-span-3 flex flex-col min-h-[400px]">
+                  {selectedFile ? (
+                    <div className="flex-1 flex flex-col space-y-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-sm font-bold text-foreground">{selectedFile.name}</h2>
+                            {selectedFile.extension === '.pdf' && (
+                              <a 
+                                href={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary hover:text-primary/80 transition-all"
+                                title="Open PDF in new tab"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Last Modified: {new Date(selectedFile.mtime).toLocaleString()}
+                          </p>
+                        </div>
+
+                        {/* Dropdown link assignment */}
+                        <div className="flex justify-end w-full sm:w-auto">
+                          <select
+                            defaultValue=""
+                            onChange={e => {
+                              if (e.target.value) {
+                                handleAssignFile(e.target.value, selectedFile.name);
+                                e.target.value = "";
+                              }
+                            }}
+                            className="bg-muted border border-border text-foreground text-xs font-bold px-3 py-1.5 rounded-xl outline-none focus:border-primary cursor-pointer w-full max-w-[220px] sm:w-[200px]"
+                          >
+                            <option value="" disabled>Link to Application...</option>
+                            {applications
+                              .filter(app => !app.linked_files || !app.linked_files.includes(selectedFile.name))
+                              .map(app => (
+                                <option key={app.id} value={app.id}>{app.company} — {app.title}</option>
+                              ))
+                            }
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Linked Applications Indicator */}
+                      {applications.filter(app => app.linked_files && app.linked_files.includes(selectedFile.name)).length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2 bg-indigo-500/5 border border-indigo-500/10 p-2.5 rounded-xl">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Linked Apps:</span>
+                          {applications
+                            .filter(app => app.linked_files && app.linked_files.includes(selectedFile.name))
+                            .map(app => (
+                              <span 
+                                key={app.id}
+                                className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-muted px-2 py-0.5 rounded-md border border-border/40"
+                              >
+                                {app.company} ({app.title})
+                                <button 
+                                  onClick={() => handleUnassignFile(app.id, selectedFile.name)}
+                                  className="text-red-400 hover:text-red-500 font-extrabold text-xs leading-none"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))
+                          }
+                        </div>
+                      )}
+
+                      {/* Markdown / PDF Content */}
+                      <div className="flex-1 overflow-y-auto max-h-[800px]">
+                        {loadingContent ? (
+                          <div className="flex items-center justify-center py-20">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          </div>
+                        ) : selectedFile.extension === '.pdf' ? (
+                          /* PDF PREVIEW IFRAME VIEW WITH WIDTH AUTOFIT */
+                          <iframe
+                            key={selectedFile.name}
+                            src={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}#zoom=page-width`}
+                            className="w-full h-[750px] border border-border/40 rounded-2xl bg-card"
+                            title="PDF Preview"
+                          />
+                        ) : ['.md', '.txt', '.html'].includes(selectedFile.extension) ? (
+                          <div 
+                            className="text-xs text-muted-foreground/90 leading-relaxed font-sans border border-border/40 p-4.5 rounded-2xl bg-muted/10"
+                            dangerouslySetInnerHTML={{ __html: parseMarkdown(fileContent) }}
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                            <AlertTriangle className="h-8 w-8 text-amber-400" />
+                            <p className="text-xs text-muted-foreground">This file type is not previewable directly.</p>
                             <a 
                               href={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-primary hover:text-primary/80 transition-all"
-                              title="Open PDF in new tab"
+                              className="inline-flex h-9 items-center justify-center rounded-xl bg-muted border border-border px-4 text-xs font-bold uppercase hover:bg-muted/80 transition-colors gap-1.5"
                             >
-                              <ExternalLink className="h-3.5 w-3.5" />
+                              Open Document <ExternalLink className="h-3.5 w-3.5" />
                             </a>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Last Modified: {new Date(selectedFile.mtime).toLocaleString()}
-                        </p>
-                      </div>
-
-                      {/* Dropdown link assignment */}
-                      <div className="flex justify-end w-full sm:w-auto">
-                        <select
-                          defaultValue=""
-                          onChange={e => {
-                            if (e.target.value) {
-                              handleAssignFile(e.target.value, selectedFile.name);
-                              e.target.value = "";
-                            }
-                          }}
-                          className="bg-muted border border-border text-foreground text-xs font-bold px-3 py-1.5 rounded-xl outline-none focus:border-primary cursor-pointer w-full max-w-[220px] sm:w-[200px]"
-                        >
-                          <option value="" disabled>Link to Application...</option>
-                          {applications
-                            .filter(app => !app.linked_files || !app.linked_files.includes(selectedFile.name))
-                            .map(app => (
-                              <option key={app.id} value={app.id}>{app.company} — {app.title}</option>
-                            ))
-                          }
-                        </select>
+                          </div>
+                        )}
                       </div>
                     </div>
-
-                    {/* Linked Applications Indicator */}
-                    {applications.filter(app => app.linked_files && app.linked_files.includes(selectedFile.name)).length > 0 && (
-                      <div className="flex flex-wrap items-center gap-2 bg-indigo-500/5 border border-indigo-500/10 p-2.5 rounded-xl">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Linked Apps:</span>
-                        {applications
-                          .filter(app => app.linked_files && app.linked_files.includes(selectedFile.name))
-                          .map(app => (
-                            <span 
-                              key={app.id}
-                              className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-muted px-2 py-0.5 rounded-md border border-border/40"
-                            >
-                              {app.company} ({app.title})
-                              <button 
-                                onClick={() => handleUnassignFile(app.id, selectedFile.name)}
-                                className="text-red-400 hover:text-red-500 font-extrabold text-xs leading-none"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))
-                        }
-                      </div>
-                    )}
-
-                    {/* Markdown / PDF Content */}
-                    <div className="flex-1 overflow-y-auto max-h-[800px]">
-                      {loadingContent ? (
-                        <div className="flex items-center justify-center py-20">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        </div>
-                      ) : selectedFile.extension === '.pdf' ? (
-                        /* PDF PREVIEW IFRAME VIEW WITH WIDTH AUTOFIT */
-                        <iframe
-                          key={selectedFile.name}
-                          src={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}#zoom=page-width`}
-                          className="w-full h-[750px] border border-border/40 rounded-2xl bg-card"
-                          title="PDF Preview"
-                        />
-                      ) : ['.md', '.txt', '.html'].includes(selectedFile.extension) ? (
-                        <div 
-                          className="text-xs text-muted-foreground/90 leading-relaxed font-sans border border-border/40 p-4.5 rounded-2xl bg-muted/10"
-                          dangerouslySetInnerHTML={{ __html: parseMarkdown(fileContent) }}
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                          <AlertTriangle className="h-8 w-8 text-amber-400" />
-                          <p className="text-xs text-muted-foreground">This file type is not previewable directly.</p>
-                          <a 
-                            href={`/api/files/view?name=${encodeURIComponent(selectedFile.name)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-9 items-center justify-center rounded-xl bg-muted border border-border px-4 text-xs font-bold uppercase hover:bg-muted/80 transition-colors gap-1.5"
-                          >
-                            Open Document <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        </div>
-                      )}
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-center">
+                      <FileText className="h-10 w-10 mb-2 opacity-40 text-indigo-400" />
+                      <p className="text-3xs uppercase font-extrabold tracking-widest">Select a document to preview and link</p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-center">
-                    <FileText className="h-10 w-10 mb-2 opacity-40 text-indigo-400" />
-                    <p className="text-3xs uppercase font-extrabold tracking-widest">Select a document to preview and link</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+            )
           )}
         </>
       )}
