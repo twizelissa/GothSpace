@@ -413,7 +413,69 @@ router.get('/discovery/linkedin', async (req, res) => {
 });
 
 // ==========================================
-// 3. File System Integration Routes
+// 3. Auto-Apply AI Engine & Email Dispatch
+// ==========================================
+router.post('/applications/auto-apply', async (req, res) => {
+  const { title, company, location, link, email, description } = req.body || {};
+
+  if (!title || !company) {
+    return res.status(400).json({ error: 'Job title and company name are required' });
+  }
+
+  try {
+    const candidateName = "Elissa Twizeyimana";
+    const candidateEmail = "twizelissa@gmail.com";
+    const candidatePhone = "+250 789 201 073";
+    const candidateLocation = "Kigali, Rwanda";
+    const candidateGithub = "https://github.com/twizelissa";
+    const candidateLinkedin = "https://www.linkedin.com/in/twizelissa";
+    const candidateCompany = "Domari Ltd (domari.rw)";
+
+    const coverLetterText = `Dear Hiring Team at ${company},
+
+I am writing to express my strong enthusiasm for the ${title} position in ${location || 'your organization'}.
+
+As a Full-Stack Software Engineer and Founder & CEO of Domari Ltd, I combine 4+ years of hands-on software development experience with expertise in building scalable web applications, RESTful APIs, and Machine Learning data infrastructure. 
+
+Key Highlights of My Background:
+- BSc (Hons) Software Engineering Student at African Leadership University (ALU) with a CGPA of 4.20 / 5.00, focusing on Machine Learning Pipelines and Web Infrastructure.
+- Founder & CEO of Domari Ltd: Leading AI data collection, annotation, and digital workforce solutions for global AI teams.
+- Full-Stack Developer Experience: Multi-year developer track record across international engineering teams in Japan (Ready to Bloom), Rwanda (Elite-HYO Group), and remote environments (Andela, Rwanda Coding Academy).
+- Core Stack: React.js, Next.js, Vue.js, Node.js, Express, Python, Java (Spring Boot), PostgreSQL, Docker, and Figma.
+
+I am confident that my technical background in full-stack architecture, machine learning data solutions, and strong problem-solving mindset make me an immediate value add for ${company}.
+
+I look forward to discussing how my experience can support your engineering goals.
+
+Best regards,
+
+${candidateName}
+${candidateEmail} | ${candidatePhone} | ${candidateLocation}
+LinkedIn: ${candidateLinkedin}
+GitHub: ${candidateGithub}
+Enterprise: ${candidateCompany}`;
+
+    const mailtoUrl = `mailto:${email || 'contact@' + company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com'}?subject=${encodeURIComponent('Application for ' + title + ' - ' + candidateName)}&body=${encodeURIComponent(coverLetterText)}`;
+
+    res.json({
+      success: true,
+      appliedAt: new Date().toISOString(),
+      jobTitle: title,
+      company: company,
+      candidate: candidateName,
+      coverLetter: coverLetterText,
+      mailtoUrl: mailtoUrl,
+      targetUrl: link,
+      status: 'Applied'
+    });
+  } catch (err) {
+    console.error('Auto-apply endpoint error:', err.message);
+    res.status(500).json({ error: 'Failed to generate AI application', details: err.message });
+  }
+});
+
+// ==========================================
+// 4. File System Integration Routes
 // ==========================================
 
 // List files in workspace

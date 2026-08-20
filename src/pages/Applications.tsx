@@ -420,9 +420,132 @@ export default function Applications() {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [loadingContent, setLoadingContent] = useState(false);
 
-  // Edit / Add Modal Details State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  // Auto-Apply AI State
+  const [applyingAuto, setApplyingAuto] = useState(false);
+  const [autoApplyResult, setAutoApplyResult] = useState<{
+    jobTitle: string;
+    company: string;
+    coverLetter: string;
+    mailtoUrl: string;
+    targetUrl: string;
+  } | null>(null);
+  const [isAutoApplyModalOpen, setIsAutoApplyModalOpen] = useState(false);
+
+  const handleAutoApply = async (opportunity: ScrapedJob) => {
+    setApplyingAuto(true);
+    try {
+      const payload = {
+        title: opportunity.title,
+        company: opportunity.company,
+        location: opportunity.location,
+        link: opportunity.link,
+        description: opportunity.description
+      };
+
+      let resData: any = null;
+      try {
+        const res = await fetch('/api/applications/auto-apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          resData = await res.json();
+        }
+      } catch (e) {
+        const res = await fetch('http://localhost:3001/api/applications/auto-apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => null);
+        if (res && res.ok) {
+          resData = await res.json();
+        }
+      }
+
+      const candidateName = "Elissa Twizeyimana";
+      const coverLetterText = resData?.coverLetter || `Dear Hiring Team at ${opportunity.company},
+
+I am writing to express my strong enthusiasm for the ${opportunity.title} position in ${opportunity.location || 'your organization'}.
+
+As a Full-Stack Software Engineer and Founder & CEO of Domari Ltd, I combine 4+ years of hands-on software development experience with expertise in building scalable web applications, RESTful APIs, and Machine Learning data infrastructure.
+
+Key Highlights of My Background:
+- BSc (Hons) Software Engineering Student at African Leadership University (ALU) with a CGPA of 4.20 / 5.00, focusing on Machine Learning Pipelines and Web Infrastructure.
+- Founder & CEO of Domari Ltd: Leading AI data collection, annotation, and digital workforce solutions for global AI teams.
+- Full-Stack Developer Experience: Multi-year developer track record across international engineering teams in Japan (Ready to Bloom), Rwanda (Elite-HYO Group), and remote environments (Andela, Rwanda Coding Academy).
+- Core Stack: React.js, Next.js, Vue.js, Node.js, Express, Python, Java (Spring Boot), PostgreSQL, Docker, and Figma.
+
+I am confident that my technical background in full-stack architecture, machine learning data solutions, and strong problem-solving mindset make me an immediate value add for ${opportunity.company}.
+
+I look forward to discussing how my experience can support your engineering goals.
+
+Best regards,
+
+${candidateName}
+twizelissa@gmail.com | +250 789 201 073 | Kigali, Rwanda
+LinkedIn: https://www.linkedin.com/in/twizelissa
+GitHub: https://github.com/twizelissa
+Enterprise: Domari Ltd (domari.rw)`;
+
+      const mailtoUrl = resData?.mailtoUrl || `mailto:contact@${opportunity.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com?subject=${encodeURIComponent('Application for ' + opportunity.title + ' - ' + candidateName)}&body=${encodeURIComponent(coverLetterText)}`;
+
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(coverLetterText).catch(() => {});
+      }
+
+      setAutoApplyResult({
+        jobTitle: opportunity.title,
+        company: opportunity.company,
+        coverLetter: coverLetterText,
+        mailtoUrl: mailtoUrl,
+        targetUrl: opportunity.link
+      });
+
+      setIsAutoApplyModalOpen(true);
+
+      const type = opportunity.source === 'Bright Scholarship' ? 'scholarship' : 'job';
+      const existing = applications.find(app => app.url === opportunity.link);
+      
+      if (existing) {
+        await updateDoc(doc(db, 'applications', existing.id), {
+          status: 'Applied',
+          statuses: { ...(existing.statuses || {}), [user!.id]: 'Applied' },
+          updated_at: serverTimestamp()
+        }).catch(() => {});
+        setApplications(prev => prev.map(a => a.id === existing.id ? { ...a, status: 'Applied' } : a));
+      } else {
+        const appData = {
+          title: opportunity.title,
+          organization: opportunity.company,
+          type: type,
+          status: 'Applied',
+          statuses: { [user!.id]: 'Applied' },
+          location: opportunity.location || '',
+          compensation: opportunity.compensation || '',
+          deadline: opportunity.deadline || '',
+          url: opportunity.link || '',
+          notes: `Auto-Applied via GothSpace AI Engine on ${new Date().toLocaleDateString()}.\n\nMatch Score: ${opportunity.matchScore || 90}%`,
+          contacts: '',
+          linked_files: [],
+          created_by: user!.id,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp()
+        };
+        const docRef = await addDoc(collection(db, 'applications'), appData).catch(() => null);
+        if (docRef) {
+          setApplications(prev => [{ ...appData, id: docRef.id, company: opportunity.company, linked_files: [] } as Application, ...prev]);
+        }
+      }
+
+      toast.success(`⚡ Application generated & moved to "Applied" column!`);
+    } catch (err) {
+      console.error('Auto-apply error:', err);
+      toast.error('Auto-apply engine encountered error');
+    } finally {
+      setApplyingAuto(false);
+    }
+  };
   
   // Modal Fields
   const [title, setTitle] = useState('');
@@ -1998,26 +2121,116 @@ export default function Applications() {
                   </div>
                 </div>
 
-                <DialogFooter className="border-t border-border/40 pt-4 flex gap-2.5">
+                <DialogFooter className="border-t border-border/40 pt-4 flex flex-wrap gap-2.5 items-center justify-end">
                   <a
                     href={activeJobDetails.link}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex h-9 items-center justify-center rounded-xl bg-muted border border-border px-4 text-2xs font-bold uppercase hover:bg-muted/80 transition-colors gap-1.5"
+                    className="inline-flex h-9 items-center justify-center rounded-xl bg-muted border border-border px-3.5 text-2xs font-bold uppercase hover:bg-muted/80 transition-colors gap-1.5"
                   >
                     Go to Portal <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                   <Button
                     onClick={() => handleTrackOpportunity(activeJobDetails)}
                     disabled={isTracked}
-                    className="font-bold uppercase tracking-wider text-2xs rounded-xl shadow-lg h-9"
+                    variant="outline"
+                    className="font-bold uppercase tracking-wider text-2xs rounded-xl h-9"
                   >
-                    {isTracked ? 'Tracked ✓' : 'Track Opportunity'}
+                    {isTracked ? 'Tracked ✓' : 'Save to Board'}
+                  </Button>
+                  <Button
+                    onClick={() => handleAutoApply(activeJobDetails)}
+                    disabled={applyingAuto}
+                    className="font-extrabold uppercase tracking-wider text-2xs rounded-xl shadow-xl h-9 bg-gradient-to-r from-amber-500 via-orange-500 to-primary text-black hover:opacity-95 transition-opacity gap-1.5"
+                  >
+                    {applyingAuto ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Zap className="h-3.5 w-3.5 fill-black" />
+                    )}
+                    ⚡ Auto-Apply with AI
                   </Button>
                 </DialogFooter>
               </>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================== */}
+      {/* AI AUTO-APPLY CONFIRMATION & DISPATCH MODAL */}
+      {/* ========================================== */}
+      <Dialog open={isAutoApplyModalOpen} onOpenChange={setIsAutoApplyModalOpen}>
+        <DialogContent className="max-w-2xl bg-card border border-primary/40 rounded-3xl shadow-2xl backdrop-blur-2xl max-h-[85vh] overflow-y-auto">
+          {autoApplyResult && (
+            <>
+              <DialogHeader className="border-b border-border/40 pb-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="inline-flex text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2.5 py-0.5 rounded-md gap-1 items-center">
+                    <CheckCircle className="h-3 w-3 text-emerald-400" /> Application Generated & Tracked
+                  </span>
+                </div>
+                <DialogTitle className="text-lg font-black text-foreground tracking-tight">
+                  Application Package: {autoApplyResult.jobTitle}
+                </DialogTitle>
+                <p className="text-xs font-bold text-primary">{autoApplyResult.company}</p>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="p-3.5 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl flex items-center justify-between text-xs font-bold text-emerald-400">
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-emerald-400" />
+                    Moved to "Applied" column in your Kanban Board!
+                  </span>
+                  <span className="text-3xs uppercase tracking-widest text-emerald-400/80 font-black">Copied to Clipboard</span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xs uppercase font-extrabold text-muted-foreground tracking-widest">Tailored Cover Letter & Candidate Pitch</span>
+                    <Button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(autoApplyResult.coverLetter);
+                        toast.success('Cover Letter copied to clipboard!');
+                      }}
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-3xs font-extrabold uppercase gap-1"
+                    >
+                      <Copy className="h-3 w-3" /> Copy Text
+                    </Button>
+                  </div>
+                  <pre className="text-xs text-muted-foreground/90 leading-relaxed font-mono border border-border/40 p-4 rounded-2xl max-h-[260px] overflow-y-auto bg-muted/20 whitespace-pre-wrap">
+                    {autoApplyResult.coverLetter}
+                  </pre>
+                </div>
+              </div>
+
+              <DialogFooter className="border-t border-border/40 pt-4 flex flex-wrap gap-2.5 items-center justify-end">
+                <Button
+                  onClick={() => setIsAutoApplyModalOpen(false)}
+                  variant="outline"
+                  className="font-bold uppercase tracking-wider text-2xs rounded-xl h-9"
+                >
+                  Close
+                </Button>
+                <a
+                  href={autoApplyResult.mailtoUrl}
+                  className="inline-flex h-9 items-center justify-center rounded-xl bg-primary text-primary-foreground px-4 text-2xs font-extrabold uppercase hover:opacity-90 transition-opacity gap-1.5 shadow-lg"
+                >
+                  <Mail className="h-3.5 w-3.5" /> Send Application Email
+                </a>
+                <a
+                  href={autoApplyResult.targetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-9 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black px-4 text-2xs font-black uppercase hover:opacity-90 transition-opacity gap-1.5 shadow-xl"
+                >
+                  Open Application Portal <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
