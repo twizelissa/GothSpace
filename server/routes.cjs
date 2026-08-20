@@ -8,7 +8,9 @@ const RSSParser = require('rss-parser');
 const router = express.Router();
 const parser = new RSSParser();
 
-const WORKSPACE_DIR = '/home/elissa/Documents/DOCUMENT/PROFESSIONAL';
+const homeDir = process.env.USERPROFILE || process.env.HOME || '';
+const WORKSPACE_DIR = process.env.WORKSPACE_DIR || path.join(homeDir, 'Documents', 'Applications');
+
 
 // ==========================================
 // 1. Custom URL Scraper & AI matching
@@ -44,9 +46,11 @@ router.get('/discovery/custom-scrape', async (req, res) => {
     // Load CV content for matching
     let cvContent = "Profile: Full-Stack Software Developer | BSc Software Engineering (ALU) | Skills: React, Next.js, Node.js, Python, AI/ML, PostgreSQL, Docker, Figma";
     try {
+      const profilePath = path.join(WORKSPACE_DIR, 'PROFILE.md');
       const cvPath = path.join(WORKSPACE_DIR, '50_Opportunities_Elissa.md');
-      if (fs.existsSync(cvPath)) {
-        cvContent = fs.readFileSync(cvPath, 'utf8').split('\n').slice(0, 10).join('\n');
+      const targetCvPath = fs.existsSync(profilePath) ? profilePath : cvPath;
+      if (fs.existsSync(targetCvPath)) {
+        cvContent = fs.readFileSync(targetCvPath, 'utf8').split('\n').slice(0, 15).join('\n');
       }
     } catch (err) {
       console.warn("Could not load CV profile:", err.message);
@@ -280,6 +284,30 @@ router.get('/discovery/linkedin', async (req, res) => {
       const urn = card.attr('data-entity-urn') || '';
       const jobId = urn.split(':').pop() || '';
 
+      // Calculate candidate resume match score
+      const textToMatch = `${title} ${company} ${jobLocation}`;
+      const matchedSkills = [];
+      const skillsToMatch = [
+        { name: 'Software Engineering', pattern: /(software|engineer|developer|full-stack|fullstack|frontend|backend|web)/i },
+        { name: 'Machine Learning & AI', pattern: /(ai|ml|machine learning|data|annotation)/i },
+        { name: 'React / Next.js', pattern: /(react|next)/i },
+        { name: 'Node.js / Express', pattern: /(node|express)/i },
+        { name: 'Python', pattern: /python/i },
+        { name: 'TypeScript / JavaScript', pattern: /(javascript|typescript|js|ts)/i },
+        { name: 'Databases (PostgreSQL/MySQL)', pattern: /(postgres|sql|database|mysql)/i }
+      ];
+
+      skillsToMatch.forEach(skill => {
+        if (skill.pattern.test(textToMatch)) {
+          matchedSkills.push(skill.name);
+        }
+      });
+
+      const matchScore = Math.min(70 + matchedSkills.length * 8, 96);
+      const missingSkills = skillsToMatch
+        .filter(skill => !matchedSkills.includes(skill.name))
+        .map(skill => skill.name);
+
       jobs.push({
         jobId,
         title,
@@ -288,7 +316,13 @@ router.get('/discovery/linkedin', async (req, res) => {
         link,
         logo,
         postDate,
-        source: 'LinkedIn'
+        source: 'LinkedIn',
+        matchScore,
+        matchReasoning: matchedSkills.length > 0 
+          ? `Matches your CV background in ${matchedSkills.join(', ')}.`
+          : `Relevant software role matching your BSc Software Engineering & Full-Stack profile.`,
+        missingSkills: missingSkills.slice(0, 3),
+        description: `<p class="mb-2"><strong>Role Title:</strong> ${title}</p><p class="mb-2"><strong>Company:</strong> ${company}</p><p class="mb-2"><strong>Location:</strong> ${jobLocation}</p><p class="text-xs text-muted-foreground">Original listing from LinkedIn Jobs Guest feed. Click "View on LinkedIn" to see full requirements and apply directly.</p>`
       });
     });
 

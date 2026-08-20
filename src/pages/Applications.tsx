@@ -434,9 +434,10 @@ export default function Applications() {
     setCustomScrapedJob(null);
     setScrapersApiError(false);
 
-    fetch(`/api/discovery/custom-scrape?url=${encodeURIComponent(customUrl.trim())}`)
+    const targetEndpoint = `/api/discovery/custom-scrape?url=${encodeURIComponent(customUrl.trim())}`;
+    fetch(targetEndpoint)
       .then(res => {
-        if (!res.ok) throw new Error('Offline');
+        if (!res.ok) throw new Error('Primary endpoint offline');
         return res.json();
       })
       .then(data => {
@@ -448,8 +449,23 @@ export default function Applications() {
         }
       })
       .catch(() => {
-        setScrapersApiError(true);
-        toast.error('Failed to connect to scraper helper.');
+        // Local fallback attempt
+        fetch(`http://localhost:3001${targetEndpoint}`)
+          .then(res => {
+            if (!res.ok) throw new Error('Local helper offline');
+            return res.json();
+          })
+          .then(data => {
+            if (data.title) {
+              setCustomScrapedJob(data);
+              setScrapersApiError(false);
+              toast.success('Scraped via local helper!');
+            }
+          })
+          .catch(() => {
+            setScrapersApiError(true);
+            toast.error('Failed to connect to scraper helper.');
+          });
       })
       .finally(() => setLoadingCustom(false));
   };
@@ -459,16 +475,36 @@ export default function Applications() {
     if (e) e.preventDefault();
     setLoadingLinkedin(true);
     setScrapersApiError(false);
-    fetch(`/api/discovery/linkedin?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(discLocation)}`)
+    const endpoint = `/api/discovery/linkedin?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(discLocation)}`;
+    
+    fetch(endpoint)
       .then(res => {
-        if (!res.ok) throw new Error('Offline');
+        if (!res.ok) throw new Error('Primary offline');
         return res.json();
       })
       .then(data => {
-        if (Array.isArray(data)) setLinkedinJobs(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setLinkedinJobs(data);
+          setScrapersApiError(false);
+        } else {
+          throw new Error('Empty result');
+        }
       })
       .catch(() => {
-        setScrapersApiError(true);
+        fetch(`http://localhost:3001${endpoint}`)
+          .then(res => {
+            if (!res.ok) throw new Error('Local offline');
+            return res.json();
+          })
+          .then(data => {
+            if (Array.isArray(data)) {
+              setLinkedinJobs(data);
+              setScrapersApiError(false);
+            }
+          })
+          .catch(() => {
+            setScrapersApiError(true);
+          });
       })
       .finally(() => setLoadingLinkedin(false));
   };
@@ -476,16 +512,34 @@ export default function Applications() {
   const loadRssFeeds = () => {
     setLoadingRss(true);
     setScrapersApiError(false);
-    fetch('/api/discovery/rss')
+    const endpoint = '/api/discovery/rss';
+    
+    fetch(endpoint)
       .then(res => {
-        if (!res.ok) throw new Error('Offline');
+        if (!res.ok) throw new Error('Primary offline');
         return res.json();
       })
       .then(data => {
-        if (Array.isArray(data)) setRssFeeds(data);
+        if (Array.isArray(data)) {
+          setRssFeeds(data);
+          setScrapersApiError(false);
+        }
       })
       .catch(() => {
-        setScrapersApiError(true);
+        fetch(`http://localhost:3001${endpoint}`)
+          .then(res => {
+            if (!res.ok) throw new Error('Local offline');
+            return res.json();
+          })
+          .then(data => {
+            if (Array.isArray(data)) {
+              setRssFeeds(data);
+              setScrapersApiError(false);
+            }
+          })
+          .catch(() => {
+            setScrapersApiError(true);
+          });
       })
       .finally(() => setLoadingRss(false));
   };
