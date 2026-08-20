@@ -1300,82 +1300,164 @@ export default function Applications() {
                 </div>
               )}
 
+              {/* Custom Scraper URL card */}
+              {discTab === 'custom' && (
+                <div className="space-y-6 max-w-3xl mx-auto">
+                  <div className="stat-card p-6 space-y-4">
+                    <div>
+                      <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5"><Sparkle className="h-4 w-4 text-primary animate-pulse" /> AI Job & Opportunity Matcher</h2>
+                      <p className="text-3xs text-muted-foreground uppercase font-extrabold tracking-widest mt-0.5">Scrape any job listing URL and evaluate it against your CV</p>
+                    </div>
+
+                    <form onSubmit={handleCustomScrape} className="flex gap-2.5 items-center">
+                      <div className="relative flex-1">
+                        <Link2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          value={customUrl}
+                          onChange={e => setCustomUrl(e.target.value)}
+                          placeholder="Paste job listing URL here (e.g. LinkedIn, Job Portal, Google Jobs...)"
+                          className="pl-9 h-9 text-xs bg-muted/40 border-border/60 rounded-xl"
+                          required
+                        />
+                      </div>
+                      <Button type="submit" disabled={loadingCustom} className="h-9 font-bold uppercase tracking-wider text-2xs rounded-xl shadow-lg">
+                        {loadingCustom ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Scrape & Match'}
+                      </Button>
+                    </form>
+                  </div>
+
+                  {/* Scraped Job Details & AI match */}
+                  {loadingCustom ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                      <p className="text-xs uppercase font-extrabold tracking-wider">Parsing HTML & Running AI matching...</p>
+                    </div>
+                  ) : customScrapedJob ? (
+                    <div className="stat-card p-6 space-y-4 bg-card/80 border-primary/30 shadow-xl animate-fade-in">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <span className="text-3xs font-extrabold uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                            {customScrapedJob.source || 'Scraped Opportunity'}
+                          </span>
+                          <h3 className="text-base font-black text-foreground tracking-tight leading-snug mt-2">{customScrapedJob.title}</h3>
+                          <p className="text-xs font-bold text-primary">{customScrapedJob.company}</p>
+                          <div className="flex flex-wrap items-center gap-4 text-3xs text-muted-foreground mt-2">
+                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {customScrapedJob.location}</span>
+                            <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> {customScrapedJob.compensation}</span>
+                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Deadline: {customScrapedJob.deadline}</span>
+                          </div>
+                        </div>
+
+                        {/* Match Score Badge */}
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-center gap-1 text-xs font-black uppercase tracking-wider px-3 py-1 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+                            <Sparkle className="h-3.5 w-3.5 text-primary" />
+                            <span>{customScrapedJob.matchScore || 85}% Match</span>
+                          </div>
+                          <span className="text-[9px] text-muted-foreground font-semibold mt-1">
+                            {customScrapedJob.aiPowered ? 'AI Verified' : 'Local Scanner'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Reasoning */}
+                      {customScrapedJob.matchReasoning && (
+                        <div className="p-3 bg-muted/30 border border-border/40 rounded-xl space-y-1">
+                          <span className="text-3xs font-extrabold uppercase tracking-widest text-muted-foreground">AI Fit Analysis:</span>
+                          <p className="text-xs text-muted-foreground/90 leading-relaxed">{customScrapedJob.matchReasoning}</p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between border-t border-border/30 pt-4">
+                        <a href={customScrapedJob.link} target="_blank" rel="noreferrer" className="text-xs text-primary font-bold hover:underline flex items-center gap-1">
+                          View Listing <ExternalLink className="h-3 w-3" />
+                        </a>
+                        <Button onClick={() => handleTrackOpportunity(customScrapedJob)} size="sm" className="font-bold uppercase tracking-wider text-2xs rounded-xl gap-1.5">
+                          <Plus className="h-3.5 w-3.5" /> Track in Board
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
               {/* LinkedIn Guest Feed search form */}
               {discTab === 'linkedin' && (
                 <div className="space-y-4">
-                  {scrapersApiError ? (
-                    <HelperOfflineWarning featureName="LinkedIn Jobs Scraper" />
+                  <form onSubmit={handleSearchLinkedIn} className="stat-card grid gap-4 sm:grid-cols-3 items-end">
+                    <div className="space-y-1.5">
+                      <Label className="text-2xs font-extrabold uppercase tracking-widest text-muted-foreground">Keywords</Label>
+                      <Input 
+                        value={keywords} 
+                        onChange={e => setKeywords(e.target.value)} 
+                        placeholder="Job title, keywords..." 
+                        className="h-9 text-xs bg-muted/30 border-border/40 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-2xs font-extrabold uppercase tracking-widest text-muted-foreground">Location</Label>
+                      <Input 
+                        value={discLocation} 
+                        onChange={e => setDiscLocation(e.target.value)} 
+                        placeholder="City, country..." 
+                        className="h-9 text-xs bg-muted/30 border-border/40 rounded-xl"
+                      />
+                    </div>
+                    <Button type="submit" disabled={loadingLinkedin} className="h-9 font-bold uppercase tracking-wider text-2xs rounded-xl">
+                      {loadingLinkedin ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Search Jobs'}
+                    </Button>
+                  </form>
+
+                  {loadingLinkedin ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
+                      <p className="text-3xs uppercase font-extrabold tracking-widest">Searching LinkedIn...</p>
+                    </div>
                   ) : (
-                    <>
-                      <form onSubmit={handleSearchLinkedIn} className="stat-card grid gap-4 sm:grid-cols-3 items-end">
-                        <div className="space-y-1.5">
-                          <Label className="text-2xs font-extrabold uppercase tracking-widest text-muted-foreground">Keywords</Label>
-                          <Input 
-                            value={keywords} 
-                            onChange={e => setKeywords(e.target.value)} 
-                            placeholder="Job title, keywords..." 
-                            className="h-9 text-xs bg-muted/30 border-border/40 rounded-xl"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-2xs font-extrabold uppercase tracking-widest text-muted-foreground">Location</Label>
-                          <Input 
-                            value={discLocation} 
-                            onChange={e => setDiscLocation(e.target.value)} 
-                            placeholder="City, country..." 
-                            className="h-9 text-xs bg-muted/30 border-border/40 rounded-xl"
-                          />
-                        </div>
-                        <Button type="submit" disabled={loadingLinkedin} className="h-9 font-bold uppercase tracking-wider text-2xs rounded-xl">
-                          {loadingLinkedin ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Search Jobs'}
-                        </Button>
-                      </form>
-
-                      {loadingLinkedin ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
-                          <p className="text-3xs uppercase font-extrabold tracking-widest">Searching LinkedIn...</p>
-                        </div>
-                      ) : (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                          {linkedinJobs.map(job => (
-                            <div 
-                              key={job.jobId || job.link} 
-                              onClick={() => handleOpenDetails(job)}
-                              className="stat-card flex flex-col justify-between p-4 space-y-4 hover:border-primary/20 cursor-pointer bg-card/65 transition-colors"
-                            >
-                              <div className="space-y-3">
-                                <div className="flex gap-3">
-                                  {job.logo ? (
-                                      <img src={job.logo} alt={job.company} className="h-10 w-10 rounded-xl border border-border/40 bg-white p-0.5 object-contain" />
-                                    ) : (
-                                      <div className="h-10 w-10 rounded-xl border border-border/40 bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-sm">
-                                        {job.company[0]?.toUpperCase() || 'J'}
-                                      </div>
-                                    )}
-                                  <div className="min-w-0">
-                                    <h3 className="text-xs font-bold text-foreground truncate">{job.title}</h3>
-                                    <p className="text-3xs text-muted-foreground font-semibold mt-0.5 truncate">{job.company}</p>
-                                    <p className="text-3xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin className="h-2.5 w-2.5" /> {job.location}</p>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {linkedinJobs.map(job => (
+                        <div 
+                          key={job.jobId || job.link} 
+                          onClick={() => handleOpenDetails(job)}
+                          className="stat-card flex flex-col justify-between p-4 space-y-4 hover:border-primary/20 cursor-pointer bg-card/65 transition-colors"
+                        >
+                          <div className="space-y-3">
+                            <div className="flex gap-3">
+                              {job.logo ? (
+                                  <img src={job.logo} alt={job.company} className="h-10 w-10 rounded-xl border border-border/40 bg-white p-0.5 object-contain" />
+                                ) : (
+                                  <div className="h-10 w-10 rounded-xl border border-border/40 bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-sm">
+                                    {job.company[0]?.toUpperCase() || 'J'}
                                   </div>
-                                </div>
-                                <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md">LinkedIn Guest</span>
+                                )}
+                              <div className="min-w-0">
+                                <h3 className="text-xs font-bold text-foreground truncate">{job.title}</h3>
+                                <p className="text-3xs text-muted-foreground font-semibold mt-0.5 truncate">{job.company}</p>
+                                <p className="text-3xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin className="h-2.5 w-2.5" /> {job.location}</p>
                               </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md">LinkedIn Guest</span>
+                              {job.matchScore && (
+                                <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md">
+                                  {job.matchScore}% Match
+                                </span>
+                              )}
+                            </div>
+                          </div>
 
-                              <div className="flex items-center justify-between border-t border-border/30 pt-3">
-                                <span className="text-[10px] text-muted-foreground">{job.postDate}</span>
-                                <span className="text-3xs text-primary font-bold hover:underline">View details &rarr;</span>
-                              </div>
-                            </div>
-                          ))}
-                          {!loadingLinkedin && linkedinJobs.length === 0 && (
-                            <div className="col-span-full text-center py-20 text-xs text-muted-foreground border border-dashed border-border rounded-2xl">
-                              Enter search terms and press Search to discover jobs.
-                            </div>
-                          )}
+                          <div className="flex items-center justify-between border-t border-border/30 pt-3">
+                            <span className="text-[10px] text-muted-foreground">{job.postDate}</span>
+                            <span className="text-3xs text-primary font-bold hover:underline">View details &rarr;</span>
+                          </div>
+                        </div>
+                      ))}
+                      {!loadingLinkedin && linkedinJobs.length === 0 && (
+                        <div className="col-span-full text-center py-20 text-xs text-muted-foreground border border-dashed border-border rounded-2xl">
+                          Enter search terms and press Search to discover jobs.
                         </div>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               )}
@@ -1383,67 +1465,61 @@ export default function Applications() {
               {/* RSS Tab Content */}
               {discTab === 'rss' && (
                 <div className="space-y-6">
-                  {scrapersApiError ? (
-                    <HelperOfflineWarning featureName="WordPress Feeds Scraper" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xs font-extrabold tracking-widest text-muted-foreground uppercase">
+                      Feeds from opportunitiesforeveryone.net & brightscholarship.com
+                    </span>
+                    <Button onClick={loadRssFeeds} disabled={loadingRss} size="sm" variant="outline" className="gap-1.5 h-8 text-3xs font-extrabold uppercase">
+                      <RefreshCw className={`h-3 w-3 ${loadingRss ? 'animate-spin' : ''}`} /> Refresh Feeds
+                    </Button>
+                  </div>
+
+                  {loadingRss ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
+                      <p className="text-3xs uppercase font-extrabold tracking-widest">Parsing WordPress RSS Portals...</p>
+                    </div>
                   ) : (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="text-3xs font-extrabold tracking-widest text-muted-foreground uppercase">
-                          Feeds from opportunitiesforeveryone.net & brightscholarship.com
-                        </span>
-                        <Button onClick={loadRssFeeds} disabled={loadingRss} size="sm" variant="outline" className="gap-1.5 h-8 text-3xs font-extrabold uppercase">
-                          <RefreshCw className={`h-3 w-3 ${loadingRss ? 'animate-spin' : ''}`} /> Refresh Feeds
-                        </Button>
-                      </div>
+                    <div className="space-y-8">
+                      {rssFeeds.map(feed => (
+                        <div key={feed.source} className="space-y-4">
+                          <h2 className="text-sm font-black text-foreground border-b border-border/40 pb-1.5 uppercase tracking-wide flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {feed.source}
+                          </h2>
 
-                      {loadingRss ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
-                          <p className="text-3xs uppercase font-extrabold tracking-widest">Parsing WordPress RSS Portals...</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-8">
-                          {rssFeeds.map(feed => (
-                            <div key={feed.source} className="space-y-4">
-                              <h2 className="text-sm font-black text-foreground border-b border-border/40 pb-1.5 uppercase tracking-wide flex items-center gap-2">
-                                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {feed.source}
-                              </h2>
-
-                              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {feed.items.map((item, idx) => (
-                                  <div 
-                                    key={item.link + idx} 
-                                    onClick={() => handleOpenDetails(item)}
-                                    className="stat-card flex flex-col justify-between p-4 space-y-4 hover:border-primary/20 cursor-pointer bg-card/65 transition-colors"
-                                  >
-                                    <div className="space-y-3">
-                                      <div>
-                                        <h3 className="text-xs font-bold text-foreground leading-snug line-clamp-2">{item.title}</h3>
-                                        <p className="text-3xs text-muted-foreground flex items-center gap-1.5 mt-1">
-                                          <Calendar className="h-2.5 w-2.5 text-muted-foreground" /> {item.deadline ? `Deadline: ${item.deadline}` : 'Check Listing'}
-                                        </p>
-                                      </div>
-                                      <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md">Portal RSS</span>
-                                      <div 
-                                        className="text-3xs text-muted-foreground line-clamp-3 leading-relaxed" 
-                                        dangerouslySetInnerHTML={{ __html: item.description || '' }}
-                                      />
-                                    </div>
-
-                                    <div className="flex items-center justify-between border-t border-border/30 pt-3">
-                                      <span className="text-[10px] text-muted-foreground">
-                                        {item.pubDate ? format(new Date(item.pubDate), 'MMM d, yyyy') : ''}
-                                      </span>
-                                      <span className="text-3xs text-primary font-bold hover:underline">View details &rarr;</span>
-                                    </div>
+                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {feed.items.map((item, idx) => (
+                              <div 
+                                key={item.link + idx} 
+                                onClick={() => handleOpenDetails(item)}
+                                className="stat-card flex flex-col justify-between p-4 space-y-4 hover:border-primary/20 cursor-pointer bg-card/65 transition-colors"
+                              >
+                                <div className="space-y-3">
+                                  <div>
+                                    <h3 className="text-xs font-bold text-foreground leading-snug line-clamp-2">{item.title}</h3>
+                                    <p className="text-3xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                                      <Calendar className="h-2.5 w-2.5 text-muted-foreground" /> {item.deadline ? `Deadline: ${item.deadline}` : 'Check Listing'}
+                                    </p>
                                   </div>
-                                ))}
+                                  <span className="inline-flex text-[9px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md">Portal RSS</span>
+                                  <div 
+                                    className="text-3xs text-muted-foreground line-clamp-3 leading-relaxed" 
+                                    dangerouslySetInnerHTML={{ __html: item.description || '' }}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between border-t border-border/30 pt-3">
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {item.pubDate ? format(new Date(item.pubDate), 'MMM d, yyyy') : ''}
+                                  </span>
+                                  <span className="text-3xs text-primary font-bold hover:underline">View details &rarr;</span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      )}
-                    </>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
